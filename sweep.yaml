@@ -1,0 +1,35 @@
+program: main.py
+method: random
+metric:
+  name: acc
+  goal: maximize
+parameters:
+  epoch:
+    distribution: q_uniform
+    min: 100
+    max: 500
+    q: 50
+  emb:
+    distribution: categorical
+    values:
+      - 16
+      - 32
+      - 64
+      - 128
+  bs:
+    distribution: categorical
+    values:
+      - 256
+      - 512
+      - 1024
+  lr:
+    distribution: categorical
+    values:
+      - 0.001
+      - 0.0005
+      - 0.0003
+      - 0.0001
+  num_drop:
+    distribution: int_uniform
+    min: 0
+    max: 3
