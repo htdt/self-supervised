@@ -5,20 +5,25 @@ import torch.optim as optim
 import torch.nn as nn
 
 
-def get_acc(model, loader_clf, loader_test):
+def get_acc(model, loader_clf, loader_test, fast=False):
     model.eval()
     fc_orig = model.fc
     model.fc = nn.Identity()
+    z = torch.zeros(1, 3, 20, 20, device='cuda')
+    with torch.no_grad():
+        output_size = model(z).shape[-1]
 
-    clf = nn.Linear(512, 10)
+    clf = nn.Linear(output_size, 10)
     clf.cuda()
     clf.train()
     optimizer = optim.Adam(clf.parameters(), lr=5e-3)
+    milestones = [80, 90] if fast else [190, 210, 230]
     scheduler = optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[190, 210, 230])
+        optimizer, milestones=milestones)
     criterion = nn.CrossEntropyLoss()
 
-    for ep in trange(250):
+    epoch = 100 if fast else 250
+    for ep in trange(epoch):
         for x, y in loader_clf:
             with torch.no_grad():
                 x = model(x.cuda())
@@ -33,10 +38,15 @@ def get_acc(model, loader_clf, loader_test):
     acc = []
     with torch.no_grad():
         for x, y in loader_test:
-            bs, ncrops, c, h, w = x.shape
-            x = x.cuda().view(bs * ncrops, c, h, w)
+            x = x.cuda()
+            if len(x.shape) == 5:
+                bs, ncrops, c, h, w = x.shape
+                x = x.view(bs * ncrops, c, h, w)
+            else:
+                ncrops = None
             y_pred = clf(model(x))
-            y_pred = y_pred.view(bs, ncrops, 10).mean(1)
+            if ncrops is not None:
+                y_pred = y_pred.view(bs, ncrops, 10).mean(1)
             acc_cur = (y_pred.argmax(1).cpu() == y).float().mean().item()
             acc.append(acc_cur)
 

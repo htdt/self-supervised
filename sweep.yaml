@@ -5,31 +5,58 @@ metric:
   goal: maximize
 parameters:
   epoch:
+    distribution: constant
+    value: 100
+  drop:
+    distribution: constant
+    value: 80
+  im0_s1:
     distribution: q_uniform
-    min: 100
-    max: 500
-    q: 50
-  emb:
-    distribution: categorical
-    values:
-      - 16
-      - 32
-      - 64
-      - 128
-  bs:
-    distribution: categorical
-    values:
-      - 256
-      - 512
-      - 1024
-  lr:
-    distribution: categorical
-    values:
-      - 0.001
-      - 0.0005
-      - 0.0003
-      - 0.0001
-  num_drop:
-    distribution: int_uniform
+    min: 1
+    max: 1.4
+    q: 0.05
+  im0_s2:
+    distribution: q_uniform
+    min: 1.2
+    max: 2
+    q: 0.05
+  im0_rp:
+    distribution: q_uniform
+    min: 0.2
+    max: 1
+    q: 0.05
+  im0_gp:
+    distribution: q_uniform
     min: 0
-    max: 3
+    max: 1
+    q: 0.05
+  im0_jp:
+    distribution: q_uniform
+    min: 0
+    max: 1
+    q: 0.05
+  im1_s1:
+    distribution: q_uniform
+    min: 1.2
+    max: 1.5
+    q: 0.05
+  im1_s2:
+    distribution: q_uniform
+    min: 1.4
+    max: 2.2
+    q: 0.05
+  im1_rp:
+    distribution: q_uniform
+    min: 0.2
+    max: 1
+    q: 0.05
+  im1_gp:
+    distribution: q_uniform
+    min: 0
+    max: 1
+    q: 0.05
+  im1_jp:
+    distribution: q_uniform
+    min: 0
+    max: 1
+    q: 0.05
