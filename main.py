@@ -7,7 +7,8 @@ import torch
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
-from torchvision.models import resnet18
+from torchvision import models
+from apex import amp
 
 from dataset import get_loaders
 from clf import get_acc
@@ -16,22 +17,25 @@ from clf import get_acc
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--epoch', type=int, default=300)
+    parser.add_argument('--test_epoch', type=int, default=250)
     parser.add_argument('--emb', type=int, default=32)
     parser.add_argument('--bs', type=int, default=1024)
     parser.add_argument('--drop', type=int, nargs='*', default=[250, 280])
     parser.add_argument('--lr', type=float, default=1e-3)
+    parser.add_argument(
+        '--arch', type=str, choices=dir(models), default='resnet18')
 
-    parser.add_argument('--im0_s1', type=float, default=1.0)
-    parser.add_argument('--im0_s2', type=float, default=1.3)
+    parser.add_argument('--im0_s1', type=float, default=1.15)
+    parser.add_argument('--im0_s2', type=float, default=1.4)
     parser.add_argument('--im0_rp', type=float, default=.5)
-    parser.add_argument('--im0_gp', type=float, default=.2)
+    parser.add_argument('--im0_gp', type=float, default=.25)
     parser.add_argument('--im0_jp', type=float, default=.5)
 
     parser.add_argument('--im1_s1', type=float, default=1.4)
-    parser.add_argument('--im1_s2', type=float, default=2.0)
+    parser.add_argument('--im1_s2', type=float, default=2.1)
     parser.add_argument('--im1_rp', type=float, default=.9)
-    parser.add_argument('--im1_gp', type=float, default=.5)
-    parser.add_argument('--im1_jp', type=float, default=.8)
+    parser.add_argument('--im1_gp', type=float, default=.25)
+    parser.add_argument('--im1_jp', type=float, default=.5)
 
     cfg = parser.parse_args()
     wandb.init(project="white_ss", config=cfg)
@@ -42,7 +46,7 @@ if __name__ == '__main__':
     loader_train, loader_clf, loader_test = get_loaders(
         cfg.bs, aug0, aug1)
 
-    model = resnet18(num_classes=cfg.emb)
+    model = getattr(models, cfg.arch)(num_classes=cfg.emb)
     model.conv1 = nn.Conv2d(
         3, 64, kernel_size=3, stride=1, padding=1, bias=False)
     model.maxpool = nn.Identity()
@@ -56,6 +60,7 @@ if __name__ == '__main__':
     criterion = torch.nn.CrossEntropyLoss()
     target = torch.arange(cfg.bs).cuda()
 
+    model, optimizer = amp.initialize(model, optimizer, opt_level='O2')
     cudnn.benchmark = True
     t1 = time()
     for ep in trange(cfg.epoch):
@@ -67,7 +72,8 @@ if __name__ == '__main__':
             x0, x1 = model(x0), model(x1)
             logits = x0 @ x1.t()
             loss = criterion(logits, target)
-            loss.backward()
+            with amp.scale_loss(loss, optimizer) as scaled_loss:
+                scaled_loss.backward()
             optimizer.step()
             loss_ep.append(loss.item())
 
@@ -75,8 +81,15 @@ if __name__ == '__main__':
         if cfg.drop is not None:
             scheduler.step()
 
+    checkpoint = {
+        'model': model.state_dict(),
+        'optimizer': optimizer.state_dict(),
+        'amp': amp.state_dict()
+    }
+    torch.save(checkpoint, 'data/checkpoint.pt')
+
     t2 = time()
-    acc = get_acc(model, loader_clf, loader_test, True)
+    acc = get_acc(model, loader_clf, loader_test, cfg.test_epoch)
     t3 = time()
     wandb.log({
         'time_train': t2 - t1,
