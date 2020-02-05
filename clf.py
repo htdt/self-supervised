@@ -3,9 +3,10 @@ import numpy as np
 import torch
 import torch.optim as optim
 import torch.nn as nn
+import wandb
 
 
-def get_acc(model, loader_clf, loader_test, epoch):
+def get_acc(model, loader_clf, loader_test, epoch, milestones, lr):
     model.eval()
     fc_orig = model.fc
     model.fc = nn.Identity()
@@ -17,13 +18,22 @@ def get_acc(model, loader_clf, loader_test, epoch):
     clf = nn.Linear(output_size, 10)
     clf.cuda()
     clf.train()
-    optimizer = optim.Adam(clf.parameters(), lr=5e-3)
-    milestones = [epoch - 10] if epoch != 250 else [190, 210, 230]
+    optimizer = optim.Adam(clf.parameters(), lr=lr)
     scheduler = optim.lr_scheduler.MultiStepLR(
         optimizer, milestones=milestones)
     criterion = nn.CrossEntropyLoss()
 
+    x_test, y_test = [], []
+    with torch.no_grad():
+        for x, y in loader_test:
+            x = x.cuda()
+            x_test.append(model(x))
+            y_test.append(y)
+    x_test = torch.cat(x_test)
+    y_test = torch.cat(y_test).cuda()
+
     for ep in trange(epoch):
+        loss_ep = []
         for x, y in loader_clf:
             with torch.no_grad():
                 x = model(x.cuda())
@@ -32,23 +42,17 @@ def get_acc(model, loader_clf, loader_test, epoch):
             loss = criterion(clf(x), y)
             loss.backward()
             optimizer.step()
+            loss_ep.append(loss.item())
+
+        if (ep + 1) % 5 == 0:
+            clf.eval()
+            with torch.no_grad():
+                y_pred = clf(x_test)
+            acc = (y_pred.argmax(1) == y_test).float().mean().cpu().item()
+            wandb.log({'acc': acc}, commit=False)
+            clf.train()
+
+        wandb.log({'loss': np.mean(loss_ep), 'ep': ep})
         scheduler.step()
 
-    clf.eval()
-    acc = []
-    with torch.no_grad():
-        for x, y in loader_test:
-            x = x.cuda()
-            if len(x.shape) == 5:
-                bs, ncrops, c, h, w = x.shape
-                x = x.view(bs * ncrops, c, h, w)
-            else:
-                ncrops = None
-            y_pred = clf(model(x))
-            if ncrops is not None:
-                y_pred = y_pred.view(bs, ncrops, 10).mean(1)
-            acc_cur = (y_pred.argmax(1).cpu() == y).float().mean().item()
-            acc.append(acc_cur)
-
     model.fc = fc_orig
-    return np.mean(acc)

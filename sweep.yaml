@@ -1,0 +1,26 @@
+program: test.py
+method: random
+metric:
+  name: acc
+  goal: maximize
+parameters:
+  im_rp:
+    distribution: uniform
+    min: 0
+    max: .7
+  im_gp:
+    distribution: uniform
+    min: 0
+    max: .5
+  im_jp:
+    distribution: uniform
+    min: 0
+    max: .7
+  epoch:
+    distribution: categorical
+    values:
+      - 250
+      - 500
+  fname:
+    distribution: constant
+    value: data/rn18.pt

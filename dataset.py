@@ -21,13 +21,6 @@ def aug_transform(s1, s2, rp, gp, jp):
     ])
 
 
-def test_transform():
-    return T.Compose([
-        T.FiveCrop(20),
-        T.Lambda(lambda cs: torch.stack([base_transform()(c) for c in cs]))
-    ])
-
-
 class MultiSample:
     def __init__(self, transforms):
         self.transforms = transforms
@@ -36,23 +29,25 @@ class MultiSample:
         return tuple(t(x) for t in self.transforms)
 
 
-def get_loaders(bs, aug0, aug1):
+def get_loader_train(bs, aug0, aug1):
     t = [aug_transform(**aug0), aug_transform(**aug1)]
     ts_train = CIFAR10(root='./data', train=True, download=True,
                        transform=MultiSample(t))
-    loader_train = torch.utils.data.DataLoader(
+    return torch.utils.data.DataLoader(
         ts_train, batch_size=bs, shuffle=True, num_workers=5,
         pin_memory=True, drop_last=True)
 
+
+def get_loader_clf(aug, bs=1000):
     ts_clf = CIFAR10(root='./data', train=True, download=True,
-                     transform=aug_transform(**aug0))
-    loader_clf = torch.utils.data.DataLoader(
-        ts_clf, batch_size=1000, shuffle=True, num_workers=16,
+                     transform=aug_transform(**aug))
+    return torch.utils.data.DataLoader(
+        ts_clf, batch_size=bs, shuffle=True, num_workers=16,
         pin_memory=True, drop_last=True)
 
+
+def get_loader_test(bs=1000):
     ts_test = CIFAR10(root='./data', train=False, download=True,
                       transform=base_transform())
-    loader_test = torch.utils.data.DataLoader(
-        ts_test, batch_size=1000, shuffle=False, num_workers=5)
-
-    return loader_train, loader_clf, loader_test
+    return torch.utils.data.DataLoader(
+        ts_test, batch_size=bs, shuffle=False, num_workers=5)

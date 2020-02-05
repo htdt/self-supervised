@@ -9,19 +9,17 @@ import torch.backends.cudnn as cudnn
 import torch.nn as nn
 from torchvision import models
 from apex import amp
-
-from dataset import get_loaders
-from clf import get_acc
+from dataset import get_loader_train
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--epoch', type=int, default=300)
-    parser.add_argument('--test_epoch', type=int, default=250)
     parser.add_argument('--emb', type=int, default=32)
     parser.add_argument('--bs', type=int, default=1024)
     parser.add_argument('--drop', type=int, nargs='*', default=[250, 280])
     parser.add_argument('--lr', type=float, default=1e-3)
+    parser.add_argument('--nce_t', type=float, default=10)
     parser.add_argument(
         '--arch', type=str, choices=dir(models), default='resnet18')
 
@@ -43,8 +41,7 @@ if __name__ == '__main__':
     cfgd = cfg.__dict__
     aug0 = {k[4:]: cfgd[k] for k in cfgd.keys() if k.startswith('im0')}
     aug1 = {k[4:]: cfgd[k] for k in cfgd.keys() if k.startswith('im1')}
-    loader_train, loader_clf, loader_test = get_loaders(
-        cfg.bs, aug0, aug1)
+    loader_train = get_loader_train(cfg.bs, aug0, aug1)
 
     model = getattr(models, cfg.arch)(num_classes=cfg.emb)
     model.conv1 = nn.Conv2d(
@@ -62,7 +59,6 @@ if __name__ == '__main__':
 
     model, optimizer = amp.initialize(model, optimizer, opt_level='O2')
     cudnn.benchmark = True
-    t1 = time()
     for ep in trange(cfg.epoch):
         loss_ep = []
         for x, _ in loader_train:
@@ -71,6 +67,7 @@ if __name__ == '__main__':
             optimizer.zero_grad()
             x0, x1 = model(x0), model(x1)
             logits = x0 @ x1.t()
+            logits /= cfg.nce_t
             loss = criterion(logits, target)
             with amp.scale_loss(loss, optimizer) as scaled_loss:
                 scaled_loss.backward()
@@ -86,13 +83,6 @@ if __name__ == '__main__':
         'optimizer': optimizer.state_dict(),
         'amp': amp.state_dict()
     }
-    torch.save(checkpoint, 'data/checkpoint.pt')
-
-    t2 = time()
-    acc = get_acc(model, loader_clf, loader_test, cfg.test_epoch)
-    t3 = time()
-    wandb.log({
-        'time_train': t2 - t1,
-        'time_test': t3 - t2,
-        'acc': acc,
-    })
+    fname = f'data/{int(time())}.pt'
+    torch.save(checkpoint, fname)
+    wandb.save(fname)
