@@ -38,9 +38,10 @@ def get_loader_train(bs, aug0, aug1):
         pin_memory=True, drop_last=True)
 
 
-def get_loader_clf(aug, bs=1000):
+def get_loader_clf(aug=None, bs=1000):
+    t = base_transform() if aug is None else aug_transform(**aug)
     ts_clf = CIFAR10(root='./data', train=True, download=True,
-                     transform=aug_transform(**aug))
+                     transform=t)
     return torch.utils.data.DataLoader(
         ts_clf, batch_size=bs, shuffle=True, num_workers=16,
         pin_memory=True, drop_last=True)

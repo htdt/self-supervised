@@ -3,29 +3,41 @@ import torch
 import torch.nn as nn
 from torchvision import models
 from dataset import get_loader_clf, get_loader_test
-from clf import get_acc
 import wandb
+from sklearn.linear_model import LogisticRegression
+
+
+def get_data(model, loader):
+    x_list, y_list = [], []
+    with torch.no_grad():
+        for x, y in loader:
+            x = x.cuda()
+            x_list.append(model(x).cpu())
+            y_list.append(y)
+    return torch.cat(x_list), torch.cat(y_list)
+
+
+def get_acc(model, loader_clf, loader_test):
+    model.eval()
+    model.fc = nn.Identity()
+    clf = LogisticRegression(
+        random_state=1337, solver='lbfgs', max_iter=1000, n_jobs=-1, verbose=1)
+    clf.fit(*get_data(model, loader_clf))
+    x_test, y_test = get_data(model, loader_test)
+    pred = clf.predict(x_test)
+    acc = (torch.tensor(pred) == y_test).float().mean()
+    wandb.log({'acc': acc})
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--epoch', type=int, default=250)
     parser.add_argument('--emb', type=int, default=32)
     parser.add_argument(
         '--arch', type=str, choices=dir(models), default='resnet18')
-    parser.add_argument('--im_s1', type=float, default=1.15)
-    parser.add_argument('--im_s2', type=float, default=2.1)
-    parser.add_argument('--im_rp', type=float, default=.5)
-    parser.add_argument('--im_gp', type=float, default=.25)
-    parser.add_argument('--im_jp', type=float, default=.5)
     parser.add_argument('--fname', type=str, required=True)
     cfg = parser.parse_args()
+    cfg.mode = 'clf_lbfgs'
     wandb.init(project="white_ss", config=cfg)
-
-    cfgd = cfg.__dict__
-    aug = {k[3:]: cfgd[k] for k in cfgd.keys() if k.startswith('im_')}
-    loader_clf = get_loader_clf(aug)
-    loader_test = get_loader_test()
 
     model = getattr(models, cfg.arch)(num_classes=cfg.emb)
     model.conv1 = nn.Conv2d(
@@ -35,5 +47,4 @@ if __name__ == '__main__':
     checkpoint = torch.load(cfg.fname)
     model.load_state_dict(checkpoint['model'])
 
-    m = [cfg.epoch - i * 20 for i in range(3, 0, -1)]
-    get_acc(model, loader_clf, loader_test, cfg.epoch, m, 5e-3)
+    get_acc(model, get_loader_clf(), get_loader_test())

@@ -10,6 +10,7 @@ import torch.nn as nn
 from torchvision import models
 from apex import amp
 from dataset import get_loader_train
+from whitening import Whitening2d
 
 
 if __name__ == '__main__':
@@ -19,7 +20,6 @@ if __name__ == '__main__':
     parser.add_argument('--bs', type=int, default=1024)
     parser.add_argument('--drop', type=int, nargs='*', default=[250, 280])
     parser.add_argument('--lr', type=float, default=1e-3)
-    parser.add_argument('--nce_t', type=float, default=10)
     parser.add_argument(
         '--arch', type=str, choices=dir(models), default='resnet18')
 
@@ -28,7 +28,6 @@ if __name__ == '__main__':
     parser.add_argument('--im0_rp', type=float, default=.5)
     parser.add_argument('--im0_gp', type=float, default=.25)
     parser.add_argument('--im0_jp', type=float, default=.5)
-
     parser.add_argument('--im1_s1', type=float, default=1.4)
     parser.add_argument('--im1_s2', type=float, default=2.1)
     parser.add_argument('--im1_rp', type=float, default=.9)
@@ -36,6 +35,7 @@ if __name__ == '__main__':
     parser.add_argument('--im1_jp', type=float, default=.5)
 
     cfg = parser.parse_args()
+    cfg.mode = 'whitening'
     wandb.init(project="white_ss", config=cfg)
 
     cfgd = cfg.__dict__
@@ -43,10 +43,13 @@ if __name__ == '__main__':
     aug1 = {k[4:]: cfgd[k] for k in cfgd.keys() if k.startswith('im1')}
     loader_train = get_loader_train(cfg.bs, aug0, aug1)
 
-    model = getattr(models, cfg.arch)(num_classes=cfg.emb)
+    model = getattr(models, cfg.arch)()
     model.conv1 = nn.Conv2d(
         3, 64, kernel_size=3, stride=1, padding=1, bias=False)
     model.maxpool = nn.Identity()
+    cur_size = model.fc.in_features
+    model.fc = nn.Sequential(
+        nn.Linear(cur_size, cfg.emb), Whitening2d(cfg.emb))
     model.cuda()
     model.train()
 
@@ -54,10 +57,8 @@ if __name__ == '__main__':
     if cfg.drop is not None:
         scheduler = optim.lr_scheduler.MultiStepLR(
             optimizer, milestones=cfg.drop)
-    criterion = torch.nn.CrossEntropyLoss()
-    target = torch.arange(cfg.bs).cuda()
 
-    model, optimizer = amp.initialize(model, optimizer, opt_level='O2')
+    model, optimizer = amp.initialize(model, optimizer, opt_level='O0')
     cudnn.benchmark = True
     for ep in trange(cfg.epoch):
         loss_ep = []
@@ -66,9 +67,7 @@ if __name__ == '__main__':
             x1 = x[1].cuda(non_blocking=True)
             optimizer.zero_grad()
             x0, x1 = model(x0), model(x1)
-            logits = x0 @ x1.t()
-            logits /= cfg.nce_t
-            loss = criterion(logits, target)
+            loss = (x0 - x1).pow(2).mean()
             with amp.scale_loss(loss, optimizer) as scaled_loss:
                 scaled_loss.backward()
             optimizer.step()
