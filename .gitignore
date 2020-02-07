@@ -1,5 +1,6 @@
 **/*.swp
 **/__pycache__
+data
 data/**
 output/**
 **/wandb/**

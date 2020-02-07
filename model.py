@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torchvision import models
 from torch.nn.functional import conv2d
 
 
@@ -57,3 +58,16 @@ class Whitening2d(nn.Module):
     def extra_repr(self):
         return 'features={}, eps={}, momentum={}'.format(
             self.num_features, self.eps, self.momentum)
+
+
+def get_model(arch: str, emb: int, whitening: bool) -> nn.Module:
+    model = getattr(models, arch)(num_classes=emb)
+    model.conv1 = nn.Conv2d(
+        3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+    model.maxpool = nn.Identity()
+    cur_size = model.fc.in_features
+    if whitening:
+        model.fc = nn.Sequential(
+            nn.Linear(cur_size, emb), Whitening2d(emb))
+    model.cuda()
+    return model, cur_size

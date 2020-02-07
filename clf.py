@@ -1,34 +1,50 @@
-import argparse
 from tqdm import trange
 import numpy as np
 import torch
-import torch.optim as optim
 import torch.nn as nn
-from torchvision import models
+import torch.optim as optim
 import wandb
-from dataset import get_loader_clf, get_loader_test
+from sklearn.linear_model import LogisticRegression
 
 
-def get_acc(model, loader_clf, loader_test, epoch, milestones, lr):
+def get_data(model, loader):
+    x_list, y_list = [], []
+    with torch.no_grad():
+        for x, y in loader:
+            x = x.cuda()
+            x_list.append(model(x).cpu())
+            y_list.append(y)
+    return torch.cat(x_list), torch.cat(y_list)
+
+
+def eval_lbfgs(model, loader_clf, loader_test):
     model.eval()
-    output_size = model.fc.in_features
+    fc_prev = model.fc
+    model.fc = nn.Identity()
+    clf = LogisticRegression(
+        random_state=1337, solver='lbfgs', max_iter=1000, n_jobs=-1)
+    clf.fit(*get_data(model, loader_clf))
+    x_test, y_test = get_data(model, loader_test)
+    pred = clf.predict(x_test)
+    acc = (torch.tensor(pred) == y_test).float().mean()
+    wandb.log({'acc': acc})
+    model.fc = fc_prev
+
+
+def eval_sgd(model, output_size, loader_clf, loader_test, epoch):
+    milestones = [epoch - i * 20 for i in range(3, 0, -1)]
+    model.eval()
+    fc_prev = model.fc
     model.fc = nn.Identity()
     clf = nn.Linear(output_size, 10)
     clf.cuda()
     clf.train()
-    optimizer = optim.Adam(clf.parameters(), lr=lr)
+    optimizer = optim.Adam(clf.parameters(), lr=5e-3)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones)
     criterion = nn.CrossEntropyLoss()
 
-    x_test, y_test = [], []
-    with torch.no_grad():
-        for x, y in loader_test:
-            x = x.cuda()
-            x_test.append(model(x))
-            y_test.append(y)
-    x_test = torch.cat(x_test)
-    y_test = torch.cat(y_test).cuda()
-
+    x_test, y_test = get_data(model, loader_test)
+    x_test, y_test = x_test.cuda(), y_test.cuda()
     for ep in trange(epoch):
         loss_ep = []
         for x, y in loader_clf:
@@ -51,36 +67,4 @@ def get_acc(model, loader_clf, loader_test, epoch, milestones, lr):
 
         wandb.log({'loss': np.mean(loss_ep), 'ep': ep})
         scheduler.step()
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--epoch', type=int, default=250)
-    parser.add_argument('--emb', type=int, default=32)
-    parser.add_argument(
-        '--arch', type=str, choices=dir(models), default='resnet18')
-    parser.add_argument('--im_s1', type=float, default=1.15)
-    parser.add_argument('--im_s2', type=float, default=2.1)
-    parser.add_argument('--im_rp', type=float, default=.05)
-    parser.add_argument('--im_gp', type=float, default=.1)
-    parser.add_argument('--im_jp', type=float, default=.1)
-    parser.add_argument('--fname', type=str, required=True)
-    cfg = parser.parse_args()
-    cfg.mode = 'clf_sgd'
-    wandb.init(project="white_ss", config=cfg)
-
-    cfgd = cfg.__dict__
-    aug = {k[3:]: cfgd[k] for k in cfgd.keys() if k.startswith('im_')}
-    loader_clf = get_loader_clf(aug=aug)
-    loader_test = get_loader_test()
-
-    model = getattr(models, cfg.arch)(num_classes=cfg.emb)
-    model.conv1 = nn.Conv2d(
-        3, 64, kernel_size=3, stride=1, padding=1, bias=False)
-    model.maxpool = nn.Identity()
-    model.cuda()
-    checkpoint = torch.load(cfg.fname)
-    model.load_state_dict(checkpoint['model'])
-
-    m = [cfg.epoch - i * 20 for i in range(3, 0, -1)]
-    get_acc(model, loader_clf, loader_test, cfg.epoch, m, 5e-3)
+    model.fc = fc_prev
