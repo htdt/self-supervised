@@ -5,6 +5,10 @@ from dataset import get_loader_clf, get_loader_test
 from model import get_model
 from clf import eval_lbfgs, eval_sgd
 from torchvision import models
+import cifar10
+import stl10
+import imagenet
+DS = {'cifar10': cifar10, 'stl10': stl10, 'imagenet': imagenet}
 
 
 if __name__ == '__main__':
@@ -15,25 +19,22 @@ if __name__ == '__main__':
         '--arch', type=str, choices=dir(models), default='resnet18')
     parser.add_argument(
         '--clf', type=str, choices=['sgd', 'lbfgs'], default='sgd')
-    parser.add_argument('--im_s1', type=float, default=1.15)
-    parser.add_argument('--im_s2', type=float, default=2.1)
-    parser.add_argument('--im_rp', type=float, default=.05)
-    parser.add_argument('--im_gp', type=float, default=.1)
-    parser.add_argument('--im_jp', type=float, default=.1)
-    parser.add_argument('--fname', type=str, required=True)
-
+    parser.add_argument('--dataset', type=str, default='cifar10',
+                        choices=['cifar10', 'stl10', 'imagenet'])
+    parser.add_argument('--fname', type=str)
     cfg = parser.parse_args()
     wandb.init(project="white_ss", config=cfg)
-    model, head = get_model(cfg.arch, cfg.emb)
-    checkpoint = torch.load(cfg.fname)
-    model.load_state_dict(checkpoint['model'])
 
+    model, head = get_model(cfg.arch, cfg.emb, cfg.dataset == 'cifar10')
+    if cfg.fname is None:
+        print('evaluating random model')
+    else:
+        checkpoint = torch.load(cfg.fname)
+        model.load_state_dict(checkpoint['model'])
+
+    loader_clf = DS[cfg.dataset].loader_clf(aug=cfg.clf == 'sgd')
+    loader_test = DS[cfg.dataset].loader_test()
     if cfg.clf == 'sgd':
-        cfgd = cfg.__dict__
-        aug = {k[3:]: cfgd[k] for k in cfgd.keys() if k.startswith('im_')}
-        loader_clf = get_loader_clf(aug=aug)
-        loader_test = get_loader_test()
         eval_sgd(model, head.in_features, loader_clf, loader_test, cfg.epoch)
-
     elif cfg.clf == 'lbfgs':
-        eval_lbfgs(model, get_loader_clf(), get_loader_test())
+        eval_lbfgs(model, loader_clf, loader_test)
