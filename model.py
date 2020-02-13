@@ -60,14 +60,20 @@ class Whitening2d(nn.Module):
             self.num_features, self.eps, self.momentum)
 
 
-def get_model(arch: str, emb: int, whitening: bool) -> nn.Module:
-    model = getattr(models, arch)(num_classes=emb)
+def get_model(arch: str, emb: int, rm_maxpool: bool) -> nn.Module:
+    model = getattr(models, arch)(num_classes=1)
     model.conv1 = nn.Conv2d(
         3, 64, kernel_size=3, stride=1, padding=1, bias=False)
-    model.maxpool = nn.Identity()
-    cur_size = model.fc.in_features
-    if whitening:
-        model.fc = nn.Sequential(
-            nn.Linear(cur_size, emb), Whitening2d(emb))
+    if rm_maxpool:
+        model.maxpool = nn.Identity()
+    head = nn.Linear(model.fc.in_features, emb)
+    model.fc = nn.Identity()
+
+    model = nn.DataParallel(model)
     model.cuda()
-    return model, cur_size
+    model.train()
+    head = nn.DataParallel(head)
+    head.cuda()
+    head.train()
+
+    return model, head

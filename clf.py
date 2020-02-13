@@ -19,8 +19,6 @@ def get_data(model, loader):
 
 def eval_lbfgs(model, loader_clf, loader_test):
     model.eval()
-    fc_prev = model.fc
-    model.fc = nn.Identity()
     clf = LogisticRegression(
         random_state=1337, solver='lbfgs', max_iter=1000, n_jobs=-1)
     clf.fit(*get_data(model, loader_clf))
@@ -28,14 +26,11 @@ def eval_lbfgs(model, loader_clf, loader_test):
     pred = clf.predict(x_test)
     acc = (torch.tensor(pred) == y_test).float().mean()
     wandb.log({'acc': acc})
-    model.fc = fc_prev
 
 
 def eval_sgd(model, output_size, loader_clf, loader_test, epoch):
     milestones = [epoch - i * 20 for i in range(3, 0, -1)]
     model.eval()
-    fc_prev = model.fc
-    model.fc = nn.Identity()
     clf = nn.Linear(output_size, 10)
     clf.cuda()
     clf.train()
@@ -67,4 +62,3 @@ def eval_sgd(model, output_size, loader_clf, loader_test, epoch):
 
         wandb.log({'loss': np.mean(loss_ep), 'ep': ep})
         scheduler.step()
-    model.fc = fc_prev

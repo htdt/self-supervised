@@ -9,7 +9,6 @@ from torchvision import models
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--whitening', action='store_true')
     parser.add_argument('--epoch', type=int, default=250)
     parser.add_argument('--emb', type=int, default=32)
     parser.add_argument(
@@ -25,7 +24,7 @@ if __name__ == '__main__':
 
     cfg = parser.parse_args()
     wandb.init(project="white_ss", config=cfg)
-    model, cur_size = get_model(cfg.arch, cfg.emb, cfg.whitening)
+    model, head = get_model(cfg.arch, cfg.emb)
     checkpoint = torch.load(cfg.fname)
     model.load_state_dict(checkpoint['model'])
 
@@ -34,7 +33,7 @@ if __name__ == '__main__':
         aug = {k[3:]: cfgd[k] for k in cfgd.keys() if k.startswith('im_')}
         loader_clf = get_loader_clf(aug=aug)
         loader_test = get_loader_test()
-        eval_sgd(model, cur_size, loader_clf, loader_test, cfg.epoch)
+        eval_sgd(model, head.in_features, loader_clf, loader_test, cfg.epoch)
 
     elif cfg.clf == 'lbfgs':
         eval_lbfgs(model, get_loader_clf(), get_loader_test())
