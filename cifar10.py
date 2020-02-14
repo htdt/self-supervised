@@ -11,7 +11,7 @@ def base_transform():
     ])
 
 
-def aug_transform(s1, s2, rp, gp, jp):
+def aug_transform(rp, gp, jp):
     return T.Compose([
         T.RandomHorizontalFlip(p=.5),
         T.RandomGrayscale(p=gp),
