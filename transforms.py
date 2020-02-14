@@ -18,18 +18,17 @@ class Resize2:
 
 
 class MultiSample:
-    def __init__(self, transforms):
-        self.transforms = transforms
+    def __init__(self, transform, n=2):
+        self.transform = transform
+        self.num = n
 
     def __call__(self, x):
-        return tuple(t(x) for t in self.transforms)
+        return tuple(self.transform(x) for _ in range(self.num))
 
 
-class WeightedRandomChoice(object):
-    def __init__(self, transforms, probs):
-        self.transforms = transforms
-        self.probs = probs
+class RandomApply2(object):
+    def __init__(self, t1, t2, p):
+        self.t1, self.t2, self.p = t1, t2, p
 
     def __call__(self, x):
-        t = random.choices(self.transforms, weights=self.probs)[0]
-        return t(x)
+        return self.t1(x) if random.random() < self.p else self.t2(x)

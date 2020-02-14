@@ -1,7 +1,6 @@
 import argparse
 import torch
 import wandb
-from dataset import get_loader_clf, get_loader_test
 from model import get_model
 from clf import eval_lbfgs, eval_sgd
 from torchvision import models
@@ -25,7 +24,7 @@ if __name__ == '__main__':
     cfg = parser.parse_args()
     wandb.init(project="white_ss", config=cfg)
 
-    model, head = get_model(cfg.arch, cfg.emb, cfg.dataset == 'cifar10')
+    model, head = get_model(cfg.arch, cfg.emb, cfg.dataset)
     if cfg.fname is None:
         print('evaluating random model')
     else:

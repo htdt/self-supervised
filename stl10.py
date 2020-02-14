@@ -1,7 +1,7 @@
 import torch
 from torchvision.datasets import STL10
 import torchvision.transforms as T
-from transforms import WeightedRandomChoice, MultiSample
+from transforms import RandomApply2, MultiSample
 
 
 def base_transform():
@@ -22,19 +22,16 @@ def aug_transform(gp, jp, rp):
         T.RandomHorizontalFlip(p=.5),
         T.RandomGrayscale(p=gp),
         T.RandomApply([T.ColorJitter(.4, .4, .4, .2)], p=jp),
-        WeightedRandomChoice([
-            T.RandomResizedCrop(
-                64, scale=(.3, 1), ratio=(.7, 1.4), interpolation=3),
-            crop64()], [rp, 1 - rp]),
+        RandomApply2(T.RandomResizedCrop(64, scale=(.3, 1), interpolation=3),
+                     crop64(), p=rp),
         base_transform()
     ])
 
 
 def loader_train(batch_size):
-    t = [aug_transform(rp=.5, gp=.25, jp=.5),
-         aug_transform(rp=.9, gp=.25, jp=.5)]
-    ts_train = STL10(root='./data', split='train+unlabeled', download=True,
-                     transform=MultiSample(t))
+    t = MultiSample(aug_transform(rp=.8, gp=.25, jp=.5))
+    ts_train = STL10(
+        root='./data', split='train+unlabeled', download=True, transform=t)
     return torch.utils.data.DataLoader(
         ts_train, batch_size=batch_size, shuffle=True, num_workers=16,
         pin_memory=True, drop_last=True)

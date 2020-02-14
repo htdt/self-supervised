@@ -60,12 +60,15 @@ class Whitening2d(nn.Module):
             self.num_features, self.eps, self.momentum)
 
 
-def get_model(arch: str, emb: int, rm_maxpool: bool) -> nn.Module:
+def get_model(arch: str, emb: int, dataset: str) -> nn.Module:
     model = getattr(models, arch)(num_classes=1)
-    model.conv1 = nn.Conv2d(
-        3, 64, kernel_size=3, stride=1, padding=1, bias=False)
-    if rm_maxpool:
+
+    if dataset == 'cifar10' or dataset == 'stl10':
+        model.conv1 = nn.Conv2d(
+            3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+    if dataset == 'cifar10':
         model.maxpool = nn.Identity()
+
     head = nn.Linear(model.fc.in_features, emb)
     model.fc = nn.Identity()
 

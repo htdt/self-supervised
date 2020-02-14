@@ -23,7 +23,7 @@ if __name__ == '__main__':
     loader_train = DS[cfg.dataset].loader_train(cfg.bs)
     loader_clf = DS[cfg.dataset].loader_clf()
     loader_test = DS[cfg.dataset].loader_test()
-    model, head = get_model(cfg.arch, cfg.emb, cfg.dataset == 'cifar10')
+    model, head = get_model(cfg.arch, cfg.emb, cfg.dataset)
     params = list(model.parameters()) + list(head.parameters())
 
     if cfg.whitening:
