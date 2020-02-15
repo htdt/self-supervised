@@ -1,4 +1,4 @@
-import torch
+from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10
 import torchvision.transforms as T
 from transforms import MultiSample
@@ -25,22 +25,19 @@ def aug_transform(rp, gp, jp):
 def loader_train(batch_size):
     t = MultiSample(aug_transform(rp=.8, gp=.25, jp=.5))
     ts_train = CIFAR10(root='./data', train=True, download=True, transform=t)
-    return torch.utils.data.DataLoader(
-        ts_train, batch_size=batch_size, shuffle=True, num_workers=16,
-        pin_memory=True, drop_last=True)
+    return DataLoader(ts_train, batch_size=batch_size, shuffle=True,
+                      num_workers=16, pin_memory=True, drop_last=True)
 
 
-def loader_clf(aug=False, batch_size=1000):
-    t = aug_transform(rp=.05, gp=.1, jp=.1) if aug else base_transform()
+def loader_clf(batch_size=1000):
     ts_clf = CIFAR10(root='./data', train=True, download=True,
-                     transform=t)
-    return torch.utils.data.DataLoader(
-        ts_clf, batch_size=batch_size, shuffle=True, num_workers=16,
-        pin_memory=True, drop_last=True)
+                     transform=base_transform())
+    return DataLoader(ts_clf, batch_size=batch_size, shuffle=True,
+                      num_workers=16, pin_memory=True, drop_last=True)
 
 
 def loader_test(batch_size=1000):
     ts_test = CIFAR10(root='./data', train=False, download=True,
                       transform=base_transform())
-    return torch.utils.data.DataLoader(
-        ts_test, batch_size=batch_size, shuffle=False, num_workers=16)
+    return DataLoader(ts_test, batch_size=batch_size, shuffle=False,
+                      num_workers=16)

@@ -1,3 +1,4 @@
+from os import path
 from time import time
 from tqdm import trange, tqdm
 import numpy as np
@@ -68,7 +69,7 @@ if __name__ == '__main__':
                 'optimizer': optimizer.state_dict(),
                 'whitening': whitening.state_dict() if cfg.whitening else None,
             }
-            fname = f'data/{int(time())}.pt'
+            fname = path.join('data', f'{int(time())}.pt')
             torch.save(checkpoint, fname)
             wandb.save(fname)
 

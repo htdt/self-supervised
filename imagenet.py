@@ -1,4 +1,4 @@
-import torch
+from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 import torchvision.transforms as T
 from transforms import RandomApply2, MultiSample
@@ -31,20 +31,18 @@ def aug_transform(gp, jp, rp):
 def loader_train(batch_size):
     t = MultiSample(aug_transform(rp=.8, gp=.25, jp=.5))
     ts_train = ImageFolder(root='/imagenet/train', transform=t)
-    return torch.utils.data.DataLoader(
-        ts_train, batch_size=batch_size, shuffle=True, num_workers=16,
-        pin_memory=True, drop_last=True)
+    return DataLoader(ts_train, batch_size=batch_size, shuffle=True,
+                      num_workers=16, pin_memory=True, drop_last=True)
 
 
 def loader_clf(batch_size=1000):
     ts_clf = ImageFolder(root='/imagenet/train', transform=test_transform())
-    return torch.utils.data.DataLoader(
-        ts_clf, batch_size=batch_size, shuffle=False, num_workers=16,
-        pin_memory=True, drop_last=True)
+    return DataLoader(ts_clf, batch_size=batch_size, shuffle=False,
+                      num_workers=16, pin_memory=True, drop_last=True)
 
 
 def loader_test(batch_size=1000):
     ts_test = ImageFolder(root='/imagenet/val/val',
                           transform=test_transform())
-    return torch.utils.data.DataLoader(
-        ts_test, batch_size=batch_size, shuffle=False, num_workers=16)
+    return DataLoader(ts_test, batch_size=batch_size, shuffle=False,
+                      num_workers=16)
