@@ -8,6 +8,7 @@ def get_cfg():
     parser.add_argument('--epoch', type=int, default=300)
     parser.add_argument('--save_every', type=int, default=50)
     parser.add_argument('--eval_every', type=int, default=50)
+    parser.add_argument('--checkpoint', action='store_true')
     parser.add_argument('--emb', type=int, default=32)
     parser.add_argument('--bs', type=int, default=1024)
     parser.add_argument('--drop', type=int, nargs='*', default=[250, 280])

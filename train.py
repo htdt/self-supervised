@@ -22,8 +22,9 @@ if __name__ == '__main__':
     wandb.init(project="white_ss", config=cfg)
 
     loader_train = DS[cfg.dataset].loader_train(cfg.bs)
-    loader_clf = DS[cfg.dataset].loader_clf()
-    loader_test = DS[cfg.dataset].loader_test()
+    if cfg.eval_every != 0:
+        loader_clf = DS[cfg.dataset].loader_clf()
+        loader_test = DS[cfg.dataset].loader_test()
     model, head = get_model(cfg.arch, cfg.emb, cfg.dataset)
     params = list(model.parameters()) + list(head.parameters())
 
@@ -38,6 +39,14 @@ if __name__ == '__main__':
     optimizer = optim.Adam(params, lr=cfg.lr)
     scheduler = optim.lr_scheduler.MultiStepLR(
         optimizer, milestones=cfg.drop)
+
+    def save(fname):
+        torch.save({
+            'model': model.state_dict(),
+            'head': head.state_dict(),
+            'optimizer': optimizer.state_dict(),
+            'whitening': whitening.state_dict() if cfg.whitening else None,
+        }, fname)
 
     cudnn.benchmark = True
     for ep in trange(cfg.epoch, position=0):
@@ -63,16 +72,13 @@ if __name__ == '__main__':
         scheduler.step()
 
         if (ep + 1) % cfg.save_every == 0:
-            checkpoint = {
-                'model': model.state_dict(),
-                'head': head.state_dict(),
-                'optimizer': optimizer.state_dict(),
-                'whitening': whitening.state_dict() if cfg.whitening else None,
-            }
             fname = path.join('data', f'{int(time())}.pt')
-            torch.save(checkpoint, fname)
+            save(fname)
             wandb.save(fname)
+        elif cfg.checkpoint:
+            fname = path.join('data', 'checkpoint.pt')
+            save(fname)
 
-        if (ep + 1) % cfg.eval_every == 0:
+        if cfg.eval_every != 0 and (ep + 1) % cfg.eval_every == 0:
             eval_lbfgs(model, loader_clf, loader_test)
             model.train()

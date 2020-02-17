@@ -28,7 +28,8 @@ def eval_lbfgs(model, loader_clf, loader_test):
     wandb.log({'acc': acc})
 
 
-def eval_sgd(model, output_size, loader_clf, loader_test, epoch):
+def eval_sgd(model, output_size, loader_clf, loader_test):
+    epoch = 250
     milestones = [epoch - i * 20 for i in range(3, 0, -1)]
     model.eval()
     clf = nn.Linear(output_size, 10)
