@@ -2,8 +2,8 @@ import argparse
 import torch
 import wandb
 from model import get_model
-from clf import eval_lbfgs, eval_sgd
-from clf_chunk import eval_sgd_chunk
+from eval_lbfgs import eval_lbfgs
+from eval_sgd import eval_sgd
 from torchvision import models
 import cifar10
 import stl10
@@ -16,15 +16,16 @@ if __name__ == '__main__':
     parser.add_argument('--emb', type=int, default=128)
     parser.add_argument(
         '--arch', type=str, choices=dir(models), default='resnet50')
-    parser.add_argument('--clf', type=str, default='sgd_chunk',
-                        choices=['sgd', 'sgd_chunk', 'lbfgs'])
+    parser.add_argument('--clf', type=str, default='sgd',
+                        choices=['sgd', 'lbfgs'])
     parser.add_argument('--dataset', type=str, default='imagenet',
                         choices=['cifar10', 'stl10', 'imagenet'])
     parser.add_argument('--fname', type=str)
+    parser.add_argument('--pretrained', action="store_true")
     cfg = parser.parse_args()
     wandb.init(project="white_ss", config=cfg)
 
-    model, head = get_model(cfg.arch, cfg.emb, cfg.dataset)
+    model, head = get_model(cfg.arch, cfg.emb, cfg.dataset, cfg.pretrained)
     if cfg.fname is None:
         print('evaluating random model')
     else:
@@ -34,9 +35,9 @@ if __name__ == '__main__':
     loader_clf = DS[cfg.dataset].loader_clf()
     loader_test = DS[cfg.dataset].loader_test()
 
-    if cfg.clf == 'sgd_chunk':
-        eval_sgd_chunk(model, head.module.in_features, loader_clf, loader_test)
-    elif cfg.clf == 'sgd':
+    if cfg.clf == 'sgd':
         eval_sgd(model, head.module.in_features, loader_clf, loader_test)
+
     elif cfg.clf == 'lbfgs':
-        eval_lbfgs(model, loader_clf, loader_test)
+        acc = eval_lbfgs(model, loader_clf, loader_test)
+        wandb.log({'acc': acc})

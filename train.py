@@ -10,7 +10,7 @@ import torch.backends.cudnn as cudnn
 
 from model import get_model, Whitening2d
 from cfg import get_cfg
-from clf import eval_lbfgs
+from eval_lbfgs import eval_lbfgs
 import cifar10
 import stl10
 import imagenet
@@ -67,6 +67,8 @@ if __name__ == '__main__':
             loss.backward()
             optimizer.step()
             loss_ep.append(loss.item())
+            if len(loss_ep) % 100 == 0:
+                wandb.log({'loss100': np.mean(loss_ep[-100:])})
 
         wandb.log({'loss': np.mean(loss_ep), 'ep': ep})
         scheduler.step()
@@ -80,5 +82,6 @@ if __name__ == '__main__':
             save(fname)
 
         if cfg.eval_every != 0 and (ep + 1) % cfg.eval_every == 0:
-            eval_lbfgs(model, loader_clf, loader_test)
+            acc = eval_lbfgs(model, loader_clf, loader_test)
+            wandb.log({'acc': acc})
             model.train()
