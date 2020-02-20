@@ -1,3 +1,4 @@
+from os import path
 import argparse
 import torch
 import wandb
@@ -11,6 +12,15 @@ import imagenet
 DS = {'cifar10': cifar10, 'stl10': stl10, 'imagenet': imagenet}
 
 
+def download_recent():
+    api = wandb.Api()
+    run = api.run("alexander/white_ss/9348jutn")
+    flist = [f.name for f in run.files() if f.name.endswith('.pt')]
+    flist.sort(key=lambda x: int(x[:-3]))
+    run.file(flist[-1]).download(root='data')
+    return path.join('data', flist[-1])
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--emb', type=int, default=128)
@@ -21,11 +31,14 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', type=str, default='imagenet',
                         choices=['cifar10', 'stl10', 'imagenet'])
     parser.add_argument('--fname', type=str)
-    parser.add_argument('--pretrained', action="store_true")
+    parser.add_argument('--download', action="store_true")
     cfg = parser.parse_args()
     wandb.init(project="white_ss", config=cfg)
 
-    model, head = get_model(cfg.arch, cfg.emb, cfg.dataset, cfg.pretrained)
+    model, head = get_model(cfg.arch, cfg.emb, cfg.dataset)
+    if cfg.download:
+        cfg.fname = download_recent()
+        print(f'evaluating {cfg.fname}')
     if cfg.fname is None:
         print('evaluating random model')
     else:

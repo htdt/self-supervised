@@ -60,8 +60,8 @@ class Whitening2d(nn.Module):
             self.num_features, self.eps, self.momentum)
 
 
-def get_model(arch, emb, dataset, pretrained=False):
-    model = getattr(models, arch)(pretrained=pretrained)
+def get_model(arch, emb, dataset):
+    model = getattr(models, arch)(pretrained=False)
 
     if dataset == 'cifar10' or dataset == 'stl10':
         model.conv1 = nn.Conv2d(
