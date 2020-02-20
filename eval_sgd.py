@@ -38,7 +38,7 @@ def eval_sgd(model, output_size, loader_clf, loader_test):
     x_test, y_test = x_test.cuda(), y_test.cuda()
 
     epoch = 300
-    lr_start, lr_end = 1e-2, 1e-4
+    lr_start, lr_end = 1e-2, 1e-6
     gamma = (lr_end / lr_start) ** (1 / epoch)
     clf = nn.Linear(output_size, 1000)
     clf.cuda()

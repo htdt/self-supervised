@@ -1,6 +1,4 @@
-from tqdm import trange
 import torch
-import wandb
 from sklearn.linear_model import LogisticRegression
 
 

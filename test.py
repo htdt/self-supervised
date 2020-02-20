@@ -33,12 +33,11 @@ if __name__ == '__main__':
     parser.add_argument('--fname', type=str)
     parser.add_argument('--download', action="store_true")
     cfg = parser.parse_args()
+    if cfg.download:
+        cfg.fname = download_recent()
     wandb.init(project="white_ss", config=cfg)
 
     model, head = get_model(cfg.arch, cfg.emb, cfg.dataset)
-    if cfg.download:
-        cfg.fname = download_recent()
-        print(f'evaluating {cfg.fname}')
     if cfg.fname is None:
         print('evaluating random model')
     else:
