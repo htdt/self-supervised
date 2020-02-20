@@ -5,6 +5,7 @@ from torchvision import models
 def get_cfg():
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--whitening', action='store_true')
+    parser.add_argument('--big_head', action='store_true')
     parser.add_argument('--epoch', type=int, default=300)
     parser.add_argument('--save_every', type=int, default=50)
     parser.add_argument('--eval_every', type=int, default=50)

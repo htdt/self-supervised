@@ -7,6 +7,7 @@ import torch
 import torch.optim as optim
 from torch.nn.functional import mse_loss, cross_entropy
 import torch.backends.cudnn as cudnn
+import torch.nn.functional as F
 
 from model import get_model, Whitening2d
 from cfg import get_cfg
@@ -25,7 +26,7 @@ if __name__ == '__main__':
     if cfg.eval_every != 0:
         loader_clf = DS[cfg.dataset].loader_clf()
         loader_test = DS[cfg.dataset].loader_test()
-    model, head = get_model(cfg.arch, cfg.emb, cfg.dataset)
+    model, head = get_model(cfg.arch, cfg.emb, cfg.dataset, cfg.big_head)
     params = list(model.parameters()) + list(head.parameters())
 
     if cfg.whitening:
@@ -61,7 +62,9 @@ if __name__ == '__main__':
                 x = whitening(torch.cat([x0, x1]))
                 loss = mse_loss(x[:bs], x[bs:])
             else:
-                logits = x0 @ x1.t()
+                x0 = F.normalize(x0, p=2, dim=1)
+                x1 = F.normalize(x1, p=2, dim=1)
+                logits = x0 @ x1.t() / .1
                 loss = cross_entropy(logits, target)
 
             loss.backward()
