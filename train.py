@@ -1,13 +1,12 @@
-from os import path
-from time import time
 from tqdm import trange, tqdm
 import numpy as np
 import wandb
 import torch
 import torch.optim as optim
+from torch.optim.lr_scheduler import ExponentialLR, MultiStepLR
 from torch.nn.functional import mse_loss, cross_entropy
 import torch.backends.cudnn as cudnn
-import torch.nn.functional as F
+from torch.nn.functional import normalize
 
 from model import get_model, Whitening2d
 from cfg import get_cfg
@@ -29,26 +28,22 @@ if __name__ == '__main__':
     model, head = get_model(cfg.arch, cfg.emb, cfg.dataset, cfg.big_head)
     params = list(model.parameters()) + list(head.parameters())
 
-    if cfg.whitening:
+    if cfg.white:
         whitening = Whitening2d(cfg.emb)
         whitening.cuda()
         whitening.train()
         params += list(whitening.parameters())
-    else:
+    if cfg.loss == 'xent':
         target = torch.arange(cfg.bs).cuda()
 
-    optimizer = optim.Adam(params, lr=cfg.lr)
-    scheduler = optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=cfg.drop)
+    optimizer = optim.Adam(params, lr=cfg.lr, weight_decay=cfg.l2)
+    if cfg.lr_exp:
+        gamma = (cfg.lr_end / cfg.lr) ** (1 / cfg.epoch)
+        scheduler = ExponentialLR(optimizer, gamma=gamma)
+    else:
+        scheduler = MultiStepLR(optimizer, milestones=cfg.drop)
 
-    def save(fname):
-        torch.save({
-            'model': model.state_dict(),
-            'head': head.state_dict(),
-            'optimizer': optimizer.state_dict(),
-            'whitening': whitening.state_dict() if cfg.whitening else None,
-        }, fname)
-
+    fname = f'data/{cfg.dataset}_{cfg.arch}_{cfg.loss}.pt'
     cudnn.benchmark = True
     for ep in trange(cfg.epoch, position=0):
         loss_ep = []
@@ -57,14 +52,19 @@ if __name__ == '__main__':
             x0 = head(model(x[0].cuda(non_blocking=True)))
             x1 = head(model(x[1].cuda(non_blocking=True)))
 
-            if cfg.whitening:
+            if cfg.white:
                 bs = len(x0)
                 x = whitening(torch.cat([x0, x1]))
-                loss = mse_loss(x[:bs], x[bs:])
-            else:
-                x0 = F.normalize(x0, p=2, dim=1)
-                x1 = F.normalize(x1, p=2, dim=1)
-                logits = x0 @ x1.t() / .1
+                x0, x1 = x[:bs], x[bs:]
+
+            if cfg.norm:
+                x0 = normalize(x0, p=2, dim=1)
+                x1 = normalize(x1, p=2, dim=1)
+
+            if cfg.loss == 'mse':
+                loss = mse_loss(x0, x1)
+            elif cfg.loss == 'xent':
+                logits = x0 @ x1.t() / cfg.tau
                 loss = cross_entropy(logits, target)
 
             loss.backward()
@@ -77,14 +77,16 @@ if __name__ == '__main__':
         scheduler.step()
 
         if (ep + 1) % cfg.save_every == 0:
-            fname = path.join('data', f'{int(time())}.pt')
-            save(fname)
-            wandb.save(fname)
-        elif cfg.checkpoint:
-            fname = path.join('data', 'checkpoint.pt')
-            save(fname)
+            torch.save({
+                'model': model.state_dict(),
+                'head': head.state_dict(),
+                'optimizer': optimizer.state_dict(),
+                'whitening': whitening.state_dict() if cfg.white else None,
+            }, fname)
 
         if cfg.eval_every != 0 and (ep + 1) % cfg.eval_every == 0:
             acc = eval_lbfgs(model, loader_clf, loader_test)
             wandb.log({'acc': acc})
             model.train()
+
+    wandb.save(fname)

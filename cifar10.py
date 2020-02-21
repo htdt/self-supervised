@@ -11,13 +11,12 @@ def base_transform():
     ])
 
 
-def aug_transform():
+def aug_transform(s=.5):
     return T.Compose([
+        T.RandomApply([T.ColorJitter(.8 * s, .8 * s, .8 * s, .2 * s)], p=.8),
+        T.RandomGrayscale(p=.2),
+        T.RandomResizedCrop(32, interpolation=3),
         T.RandomHorizontalFlip(p=.5),
-        T.RandomGrayscale(p=.25),
-        T.RandomApply([T.ColorJitter(.4, .4, .4, .2)], p=.5),
-        T.RandomApply([
-            T.RandomResizedCrop(32, scale=(.25, 1), interpolation=3)], p=.8),
         base_transform()
     ])
 
