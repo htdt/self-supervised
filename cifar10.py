@@ -1,7 +1,7 @@
 from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10
 import torchvision.transforms as T
-from transforms import MultiSample
+from transforms import MultiSample, aug_transform
 
 
 def base_transform():
@@ -11,18 +11,8 @@ def base_transform():
     ])
 
 
-def aug_transform(s=.5):
-    return T.Compose([
-        T.RandomApply([T.ColorJitter(.8 * s, .8 * s, .8 * s, .2 * s)], p=.8),
-        T.RandomGrayscale(p=.2),
-        T.RandomResizedCrop(32, interpolation=3),
-        T.RandomHorizontalFlip(p=.5),
-        base_transform()
-    ])
-
-
 def loader_train(batch_size):
-    t = MultiSample(aug_transform())
+    t = MultiSample(aug_transform(32, base_transform))
     ts_train = CIFAR10(root='./data', train=True, download=True, transform=t)
     return DataLoader(ts_train, batch_size=batch_size, shuffle=True,
                       num_workers=8, pin_memory=True, drop_last=True)

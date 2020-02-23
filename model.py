@@ -60,7 +60,7 @@ class Whitening2d(nn.Module):
             self.num_features, self.eps, self.momentum)
 
 
-def get_model(arch, emb, dataset, big_head):
+def get_model(arch, emb, dataset, linear_head=True):
     model = getattr(models, arch)(pretrained=False)
 
     if dataset == 'cifar10' or dataset == 'stl10':
@@ -71,11 +71,11 @@ def get_model(arch, emb, dataset, big_head):
     out_size = model.fc.in_features
     model.fc = nn.Identity()
 
-    if big_head:
+    if linear_head:
+        head = nn.Linear(out_size, emb)
+    else:
         head = nn.Sequential(
             nn.Linear(out_size, out_size), nn.ReLU(), nn.Linear(out_size, emb))
-    else:
-        head = nn.Linear(out_size, emb)
 
     model = nn.DataParallel(model)
     model.cuda()

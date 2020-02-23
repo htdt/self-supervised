@@ -1,7 +1,7 @@
 from torch.utils.data import DataLoader
 from torchvision.datasets import STL10
 import torchvision.transforms as T
-from transforms import RandomApply2, MultiSample
+from transforms import MultiSample, aug_transform
 
 
 def base_transform():
@@ -9,27 +9,13 @@ def base_transform():
         T.ToTensor(), T.Normalize((.43, .42, .39), (.27, .26, .27))])
 
 
-def crop64():
-    return T.Compose([T.Resize(70, interpolation=3), T.CenterCrop(64)])
-
-
 def test_transform():
-    return T.Compose([crop64(), base_transform()])
-
-
-def aug_transform():
     return T.Compose([
-        T.RandomHorizontalFlip(p=.5),
-        T.RandomGrayscale(p=.25),
-        T.RandomApply([T.ColorJitter(.4, .4, .4, .2)], p=.5),
-        RandomApply2(T.RandomResizedCrop(64, scale=(.25, 1), interpolation=3),
-                     crop64(), p=.8),
-        base_transform()
-    ])
+        T.Resize(70, interpolation=3), T.CenterCrop(64), base_transform()])
 
 
 def loader_train(batch_size):
-    t = MultiSample(aug_transform())
+    t = MultiSample(aug_transform(64, base_transform))
     ts_train = STL10(
         root='./data', split='train+unlabeled', download=True, transform=t)
     return DataLoader(ts_train, batch_size=batch_size, shuffle=True,
