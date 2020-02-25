@@ -18,7 +18,7 @@ def get_data(model, loader, output_size, device):
     return xs, ys
 
 
-def eval_sgd(model, output_size, loader_clf, loader_test):
+def eval_sgd(model, output_size, loader_clf, loader_test, epoch=300):
     model.eval()
     x_train, y_train = get_data(model, loader_clf, output_size, 'cuda')
     x_test, y_test = get_data(model, loader_test, output_size, 'cuda')
@@ -32,7 +32,6 @@ def eval_sgd(model, output_size, loader_clf, loader_test):
     # x_train, y_train = x_train.cuda(), y_train.cuda()
     # x_test, y_test = x_test.cuda(), y_test.cuda()
 
-    epoch = 300
     lr_start, lr_end = 1e-2, 1e-6
     gamma = (lr_end / lr_start) ** (1 / epoch)
     num_class = y_train.max().item() + 1

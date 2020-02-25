@@ -60,7 +60,21 @@ class Whitening2d(nn.Module):
             self.num_features, self.eps, self.momentum)
 
 
-def get_model(arch, emb, dataset, linear_head=True):
+def lerp_nn(source: nn.Module, target: nn.Module, tau: float):
+    for t, s in zip(target.parameters(), source.parameters()):
+        t.data.copy_(t.data * tau + s.data * (1. - tau))
+
+
+def get_head(out_size, emb, linear):
+    if linear:
+        h = nn.Linear(out_size, emb)
+    else:
+        h = nn.Sequential(
+            nn.Linear(out_size, out_size), nn.ReLU(), nn.Linear(out_size, emb))
+    return h.cuda().train()
+
+
+def get_model(arch, dataset):
     model = getattr(models, arch)(pretrained=False)
 
     if dataset == 'cifar10' or dataset == 'stl10':
@@ -71,17 +85,4 @@ def get_model(arch, emb, dataset, linear_head=True):
     out_size = model.fc.in_features
     model.fc = nn.Identity()
 
-    if linear_head:
-        head = nn.Linear(out_size, emb)
-    else:
-        head = nn.Sequential(
-            nn.Linear(out_size, out_size), nn.ReLU(), nn.Linear(out_size, emb))
-
-    model = nn.DataParallel(model)
-    model.cuda()
-    model.train()
-    head = nn.DataParallel(head)
-    head.cuda()
-    head.train()
-
-    return model, head
+    return nn.DataParallel(model).cuda().train(), out_size
