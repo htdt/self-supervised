@@ -35,9 +35,8 @@ if __name__ == '__main__':
     cfg = parser.parse_args()
     if cfg.download:
         cfg.fname = download_recent()
-    wandb.init(project="white_ss", config=cfg)
 
-    model, head = get_model(cfg.arch, cfg.emb, cfg.dataset)
+    model, out_size = get_model(cfg.arch, cfg.dataset)
     if cfg.fname is None:
         print('evaluating random model')
     else:
@@ -48,8 +47,7 @@ if __name__ == '__main__':
     loader_test = DS[cfg.dataset].loader_test()
 
     if cfg.clf == 'sgd':
-        eval_sgd(model, head.module.in_features, loader_clf, loader_test)
-
+        acc = eval_sgd(model, out_size, loader_clf, loader_test, 500)
     elif cfg.clf == 'lbfgs':
         acc = eval_lbfgs(model, loader_clf, loader_test)
-        wandb.log({'acc': acc})
+    print(acc)
