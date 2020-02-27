@@ -65,13 +65,13 @@ def lerp_nn(source: nn.Module, target: nn.Module, tau: float):
         t.data.copy_(t.data * tau + s.data * (1. - tau))
 
 
-def get_head(out_size, emb, linear):
-    if linear:
-        h = nn.Linear(out_size, emb)
-    else:
-        h = nn.Sequential(
-            nn.Linear(out_size, out_size), nn.ReLU(), nn.Linear(out_size, emb))
-    return h.cuda().train()
+def get_head(out_size, emb, linear, whitening=False):
+    h = nn.Linear(out_size, emb)
+    if not linear:
+        h = nn.Sequential(nn.Linear(out_size, out_size), nn.ReLU(), h)
+    if whitening:
+        h = nn.Sequential(h, Whitening2d(emb, track_running_stats=False))
+    return nn.DataParallel(h).cuda().train()
 
 
 def get_model(arch, dataset):
