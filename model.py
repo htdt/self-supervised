@@ -60,18 +60,15 @@ class Whitening2d(nn.Module):
             self.num_features, self.eps, self.momentum)
 
 
-def lerp_nn(source: nn.Module, target: nn.Module, tau: float):
-    for t, s in zip(target.parameters(), source.parameters()):
-        t.data.copy_(t.data * tau + s.data * (1. - tau))
-
-
-def get_head(out_size, emb, linear, whitening=False):
+def get_head(out_size, emb, linear=False, whitening=False, multi_gpu=False):
     h = nn.Linear(out_size, emb)
     if not linear:
         h = nn.Sequential(nn.Linear(out_size, out_size), nn.ReLU(), h)
     if whitening:
         h = nn.Sequential(h, Whitening2d(emb, track_running_stats=False))
-    return nn.DataParallel(h).cuda().train()
+    if multi_gpu:
+        h = nn.DataParallel(h)
+    return h.cuda().train()
 
 
 def get_model(arch, dataset):
