@@ -13,8 +13,8 @@ from cfg import get_cfg
 from eval_sgd import eval_sgd
 import cifar10
 import stl10
-import imagenet
-DS = {'cifar10': cifar10, 'stl10': stl10, 'imagenet': imagenet}
+import tiny_in
+DS = {'cifar10': cifar10, 'stl10': stl10, 'tiny_in': tiny_in}
 
 
 if __name__ == '__main__':

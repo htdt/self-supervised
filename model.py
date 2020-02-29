@@ -73,13 +73,10 @@ def get_head(out_size, emb, linear=False, whitening=False, multi_gpu=False):
 
 def get_model(arch, dataset):
     model = getattr(models, arch)(pretrained=False)
-
-    if dataset == 'cifar10' or dataset == 'stl10':
-        model.conv1 = nn.Conv2d(
-            3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+    model.conv1 = nn.Conv2d(
+        3, 64, kernel_size=3, stride=1, padding=1, bias=False)
     if dataset == 'cifar10':
         model.maxpool = nn.Identity()
     out_size = model.fc.in_features
     model.fc = nn.Identity()
-
     return nn.DataParallel(model).cuda().train(), out_size
