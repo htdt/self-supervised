@@ -4,10 +4,7 @@ from model import get_model
 from eval_lbfgs import eval_lbfgs
 from eval_sgd import eval_sgd
 from torchvision import models
-import cifar10
-import stl10
-import tiny_in
-DS = {'cifar10': cifar10, 'stl10': stl10, 'tiny_in': tiny_in}
+import datasets
 
 
 if __name__ == '__main__':
@@ -29,8 +26,8 @@ if __name__ == '__main__':
         checkpoint = torch.load(cfg.fname)
         model.load_state_dict(checkpoint['model'])
 
-    loader_clf = DS[cfg.dataset].loader_clf()
-    loader_test = DS[cfg.dataset].loader_test()
+    ds = getattr(datasets, cfg.dataset)
+    loader_clf, loader_test = ds.loader_clf(), ds.loader_test()
 
     if cfg.clf == 'sgd':
         acc = eval_sgd(model, out_size, loader_clf, loader_test, 500)

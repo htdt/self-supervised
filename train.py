@@ -11,19 +11,16 @@ import torch.backends.cudnn as cudnn
 from model import get_model, get_head
 from cfg import get_cfg
 from eval_sgd import eval_sgd
-import cifar10
-import stl10
-import tiny_in
-DS = {'cifar10': cifar10, 'stl10': stl10, 'tiny_in': tiny_in}
+import datasets
 
 
 if __name__ == '__main__':
     cfg = get_cfg()
     wrun = wandb.init(project="white_ss", config=cfg, resume=cfg.resume)
 
-    loader_train = DS[cfg.dataset].loader_train(cfg.bs)
-    loader_clf = DS[cfg.dataset].loader_clf()
-    loader_test = DS[cfg.dataset].loader_test()
+    ds = getattr(datasets, cfg.dataset)
+    loader_train = ds.loader_train(cfg.bs)
+    loader_clf, loader_test = ds.loader_clf(), ds.loader_test()
     model, out_size = get_model(cfg.arch, cfg.dataset)
     params = list(model.parameters())
 

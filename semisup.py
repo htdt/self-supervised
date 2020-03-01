@@ -14,7 +14,7 @@ from stl10 import base_transform
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--epoch', type=int, default=500)
+    parser.add_argument('--epoch', type=int, default=1000)
     parser.add_argument('--epoch_head', type=int, default=200)
     parser.add_argument('--fname', type=str)
     cfg = parser.parse_args()
@@ -47,7 +47,7 @@ if __name__ == '__main__':
                           num_workers=8, pin_memory=True)
     ts_test = STL10(root='./data', split='test', download=True,
                     transform=test_t)
-    dl_test = DataLoader(ts_test, batch_size=1000, num_workers=8)
+    dl_test = DataLoader(ts_test, batch_size=100, num_workers=8)
 
     def test():
         head.eval(), model.eval()
