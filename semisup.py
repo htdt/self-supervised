@@ -9,7 +9,7 @@ import torchvision.transforms as T
 from torch.utils.data import DataLoader
 from torchvision.datasets import STL10
 import wandb
-from stl10 import base_transform
+from dataset.stl10 import base_transform
 
 
 if __name__ == '__main__':
