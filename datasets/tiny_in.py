@@ -1,7 +1,7 @@
-from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 import torchvision.transforms as T
-from transforms import MultiSample, aug_transform
+from .transforms import MultiSample, aug_transform
+from .base import BaseDataset
 
 
 def base_transform():
@@ -9,22 +9,15 @@ def base_transform():
         T.ToTensor(), T.Normalize((.480, .448, .398), (.277, .269, .282))])
 
 
-def loader_train(batch_size):
-    t = MultiSample(aug_transform(64, base_transform))
-    ts_train = ImageFolder(root='data/tiny-imagenet-200/train', transform=t)
-    return DataLoader(ts_train, batch_size=batch_size, shuffle=True,
-                      num_workers=8, pin_memory=True, drop_last=True)
+class TinyImageNet(BaseDataset):
+    def ds_train(self):
+        t = MultiSample(aug_transform(64, base_transform))
+        return ImageFolder(root='data/tiny-imagenet-200/train', transform=t)
 
+    def ds_clf(self):
+        return ImageFolder(root='data/tiny-imagenet-200/train',
+                           transform=base_transform())
 
-def loader_clf(batch_size=1000):
-    ts_clf = ImageFolder(root='data/tiny-imagenet-200/train',
-                         transform=base_transform())
-    return DataLoader(ts_clf, batch_size=batch_size, shuffle=True,
-                      num_workers=8, pin_memory=True, drop_last=True)
-
-
-def loader_test(batch_size=1000):
-    ts_test = ImageFolder(root='data/tiny-imagenet-200/test',
-                          transform=base_transform())
-    return DataLoader(ts_test, batch_size=batch_size, shuffle=False,
-                      num_workers=8)
+    def ds_test(self):
+        return ImageFolder(root='data/tiny-imagenet-200/test',
+                           transform=base_transform())

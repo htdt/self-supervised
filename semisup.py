@@ -9,7 +9,7 @@ import torchvision.transforms as T
 from torch.utils.data import DataLoader
 from torchvision.datasets import STL10
 import wandb
-from dataset.stl10 import base_transform
+from datasets.stl10 import base_transform
 
 
 if __name__ == '__main__':
@@ -34,8 +34,8 @@ if __name__ == '__main__':
         nn.Linear(2048, 10)).cuda()
 
     aug_t = T.Compose([
-        T.RandomResizedCrop(64, scale=(1/3, 1), interpolation=3),
-        T.RandomHorizontalFlip(p=.5),
+        T.RandomCrop(64),
+        T.RandomHorizontalFlip(),
         base_transform()
     ])
     test_t = T.Compose([T.TenCrop(64), T.Lambda(
@@ -64,7 +64,7 @@ if __name__ == '__main__':
 
     lr_start, lr_end = 1e-2, 1e-4
     gamma = (lr_end / lr_start) ** (1 / cfg.epoch_head)
-    optimizer = optim.Adam(head.parameters(), lr=lr_start, weight_decay=5e-6)
+    optimizer = optim.Adam(head.parameters(), lr=lr_start, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=gamma)
     criterion = nn.CrossEntropyLoss()
 
@@ -81,7 +81,7 @@ if __name__ == '__main__':
     wandb.log({'acc_head': test()})
 
     param = list(model.parameters()) + list(head.parameters())
-    optimizer = optim.Adam(param, lr=1e-4, weight_decay=5e-6)
+    optimizer = optim.Adam(param, lr=1e-4, weight_decay=1e-4)
 
     model.train(), head.train()
     for ep in trange(cfg.epoch):

@@ -11,16 +11,14 @@ import torch.backends.cudnn as cudnn
 from model import get_model, get_head
 from cfg import get_cfg
 from eval_sgd import eval_sgd
-import datasets
+from datasets import get_ds
 
 
 if __name__ == '__main__':
     cfg = get_cfg()
     wrun = wandb.init(project="white_ss", config=cfg, resume=cfg.resume)
 
-    ds = getattr(datasets, cfg.dataset)
-    loader_train = ds.loader_train(cfg.bs)
-    loader_clf, loader_test = ds.loader_clf(), ds.loader_test()
+    ds = get_ds(cfg.dataset)(cfg.bs)
     model, out_size = get_model(cfg.arch, cfg.dataset)
     params = list(model.parameters())
 
@@ -40,7 +38,7 @@ if __name__ == '__main__':
     cudnn.benchmark = True
     for ep in trange(cfg.epoch_start, cfg.epoch, position=0):
         loss_ep = defaultdict(list)
-        for (x0, x1), _ in tqdm(loader_train, position=1):
+        for (x0, x1), _ in tqdm(ds.train, position=1):
             optimizer.zero_grad()
             h0 = model(x0.cuda(non_blocking=True))
             h1 = model(x1.cuda(non_blocking=True))
@@ -87,7 +85,7 @@ if __name__ == '__main__':
         }, fname)
 
         if (ep + 1) % cfg.eval_every == 0:
-            acc = eval_sgd(model, out_size, loader_clf, loader_test, 500)
+            acc = eval_sgd(model, out_size, ds.clf, ds.test, 500)
             wandb.log({'acc': acc}, commit=False)
             model.train()
 

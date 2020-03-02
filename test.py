@@ -4,7 +4,7 @@ from model import get_model
 from eval_lbfgs import eval_lbfgs
 from eval_sgd import eval_sgd
 from torchvision import models
-import datasets
+from datasets import get_ds
 
 
 if __name__ == '__main__':
@@ -14,8 +14,7 @@ if __name__ == '__main__':
         '--arch', type=str, choices=dir(models), default='resnet50')
     parser.add_argument('--clf', type=str, default='sgd',
                         choices=['sgd', 'lbfgs'])
-    parser.add_argument('--dataset', type=str, default='cifar10',
-                        choices=['cifar10', 'stl10', 'tiny_in'])
+    parser.add_argument('--dataset', type=str, default='cifar10')
     parser.add_argument('--fname', type=str)
     cfg = parser.parse_args()
 
@@ -26,11 +25,9 @@ if __name__ == '__main__':
         checkpoint = torch.load(cfg.fname)
         model.load_state_dict(checkpoint['model'])
 
-    ds = getattr(datasets, cfg.dataset)
-    loader_clf, loader_test = ds.loader_clf(), ds.loader_test()
-
+    ds = get_ds(cfg.dataset)(None)
     if cfg.clf == 'sgd':
-        acc = eval_sgd(model, out_size, loader_clf, loader_test, 500)
+        acc = eval_sgd(model, out_size, ds.clf, ds.test, 500)
     elif cfg.clf == 'lbfgs':
-        acc = eval_lbfgs(model, loader_clf, loader_test)
+        acc = eval_lbfgs(model, ds.clf, ds.test)
     print(acc)

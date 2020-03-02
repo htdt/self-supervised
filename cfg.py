@@ -25,6 +25,5 @@ def get_cfg():
     parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument(
         '--arch', type=str, choices=dir(models), default='resnet18')
-    parser.add_argument('--dataset', type=str, default='cifar10',
-                        choices=['cifar10', 'stl10', 'tiny_in'])
+    parser.add_argument('--dataset', type=str, default='cifar10')
     return parser.parse_args()
