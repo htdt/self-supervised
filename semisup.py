@@ -14,13 +14,15 @@ from datasets.stl10 import base_transform
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--epoch', type=int, default=1000)
+    parser.add_argument('--epoch', type=int, default=2000)
     parser.add_argument('--epoch_head', type=int, default=200)
     parser.add_argument('--fname', type=str)
+    parser.add_argument('--arch', type=str, default='resnet34')
+    parser.add_argument('--dataset', type=str, default='stl10')
     cfg = parser.parse_args()
     wandb.init(project="white_ss", config=cfg)
 
-    model, out_size = get_model('resnet34', 'stl10')
+    model, out_size = get_model(cfg.arch, cfg.dataset)
     if cfg.fname is None:
         print('evaluating random model')
     else:
@@ -36,7 +38,8 @@ if __name__ == '__main__':
     aug_t = T.Compose([
         T.RandomCrop(64),
         T.RandomHorizontalFlip(),
-        base_transform()
+        base_transform(),
+        T.RandomErasing(),
     ])
     test_t = T.Compose([T.TenCrop(64), T.Lambda(
         lambda crops: torch.stack([base_transform()(c) for c in crops]))])
