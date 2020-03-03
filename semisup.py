@@ -14,7 +14,7 @@ from datasets.stl10 import base_transform
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--epoch', type=int, default=2000)
+    parser.add_argument('--epoch', type=int, default=1000)
     parser.add_argument('--epoch_head', type=int, default=200)
     parser.add_argument('--fname', type=str)
     parser.add_argument('--arch', type=str, default='resnet34')

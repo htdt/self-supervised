@@ -28,7 +28,7 @@ if __name__ == '__main__':
         params += list(head_nce.parameters())
     if cfg.mse:
         head_mse = get_head(out_size, cfg.emb, cfg.linear_head,
-                            whitening=True, multi_gpu=(cfg.w_slice > 1))
+                            whitening=True)
         params += list(head_mse.parameters())
 
     optimizer = optim.Adam(params, lr=cfg.lr, weight_decay=cfg.l2)
@@ -61,10 +61,9 @@ if __name__ == '__main__':
                     loss_mse = mse_loss(z[:len(h0)], z[len(h0):])
                 else:
                     loss_mse = 0
-                    num_slice = cfg.w_slice // torch.cuda.device_count()
                     for _ in range(cfg.w_iter):
                         z = torch.empty(len(h), cfg.emb, device='cuda')
-                        perm = torch.randperm(len(h)).view(num_slice, -1)
+                        perm = torch.randperm(len(h)).view(cfg.w_slice, -1)
                         for idx in perm:
                             z[idx] = head_mse(h[idx])
                         loss_mse += mse_loss(z[:len(h0)], z[len(h0):])

@@ -19,9 +19,9 @@ def get_cfg():
     parser.add_argument('--fname', type=str)
     parser.add_argument('--eval_every', type=int, default=20)
     parser.add_argument('--emb', type=int, default=32)
-    parser.add_argument('--l2', type=float, default=1e-6)
+    parser.add_argument('--l2', type=float, default=0)
     parser.add_argument('--bs', type=int, default=256)
-    parser.add_argument('--drop', type=int, nargs='*', default=[180])
+    parser.add_argument('--drop', type=int, nargs='*', default=[])
     parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument(
         '--arch', type=str, choices=dir(models), default='resnet18')

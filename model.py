@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torchvision import models
-from torch.nn.functional import conv2d
+from torch.nn.functional import conv2d, normalize
 
 
 class Whitening2d(nn.Module):
@@ -20,6 +20,7 @@ class Whitening2d(nn.Module):
                                  torch.eye(self.num_features))
 
     def forward(self, x):
+        x = normalize(x, p=2, dim=1)
         x = x.unsqueeze(2).unsqueeze(3)
         m = x.mean(0).view(self.num_features, -1).mean(-1).view(1, -1, 1, 1)
         if not self.training and self.track_running_stats:  # for inference
@@ -60,14 +61,12 @@ class Whitening2d(nn.Module):
             self.num_features, self.eps, self.momentum)
 
 
-def get_head(out_size, emb, linear=False, whitening=False, multi_gpu=False):
+def get_head(out_size, emb, linear=False, whitening=False):
     h = nn.Linear(out_size, emb)
     if not linear:
         h = nn.Sequential(nn.Linear(out_size, out_size), nn.ReLU(), h)
     if whitening:
         h = nn.Sequential(h, Whitening2d(emb, track_running_stats=False))
-    if multi_gpu:
-        h = nn.DataParallel(h)
     return h.cuda().train()
 
 
