@@ -7,7 +7,7 @@ from .base import BaseDataset
 def base_transform():
     return T.Compose([
         T.ToTensor(),
-        T.Normalize((.4914, .4822, .4465), (.2023, .1994, .2010)),
+        T.Normalize((.5071, .4867, .4408), (.2675, .2565, .2761)),
     ])
 
 

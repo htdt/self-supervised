@@ -1,4 +1,6 @@
-python -m train --emb 64 --dataset tiny_in --nce --no_norm --tau 1
-python -m train --emb 64 --dataset tiny_in --nce
-python -m train --emb 64 --dataset tiny_in --mse
-python -m train --emb 64 --dataset tiny_in --nce --mse
+python -m train --bs 128 --dataset cifar100 --mse
+python -m train --bs 128 --dataset cifar100 --nce
+python -m train --bs 128 --dataset cifar100 --nce --mse
+python -m train --bs 128 --dataset cifar100 --nce --no_norm --tau 1
+python -m train --bs 128 --dataset cifar100 --mse --w_iter 4 --w_slice 4
+python -m train --bs 128 --dataset cifar100 --mse --w_iter 4 --w_slice 4 --nce

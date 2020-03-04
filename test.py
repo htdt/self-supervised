@@ -9,7 +9,6 @@ from datasets import get_ds
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--emb', type=int, default=128)
     parser.add_argument(
         '--arch', type=str, choices=dir(models), default='resnet50')
     parser.add_argument('--clf', type=str, default='sgd',

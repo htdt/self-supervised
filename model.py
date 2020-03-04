@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torchvision import models
-from torch.nn.functional import conv2d, normalize
+from torch.nn.functional import conv2d
 
 
 class Whitening2d(nn.Module):
@@ -20,7 +20,6 @@ class Whitening2d(nn.Module):
                                  torch.eye(self.num_features))
 
     def forward(self, x):
-        x = normalize(x, p=2, dim=1)
         x = x.unsqueeze(2).unsqueeze(3)
         m = x.mean(0).view(self.num_features, -1).mean(-1).view(1, -1, 1, 1)
         if not self.training and self.track_running_stats:  # for inference
