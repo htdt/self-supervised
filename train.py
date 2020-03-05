@@ -26,7 +26,7 @@ if __name__ == '__main__':
         head_nce = get_head(out_size, cfg.emb, cfg.linear_head)
         target_nce = torch.arange(cfg.bs).cuda()
         params += list(head_nce.parameters())
-    if cfg.mse:
+    if cfg.wmse:
         head_mse = get_head(out_size, cfg.emb, cfg.linear_head,
                             whitening=True)
         params += list(head_mse.parameters())
@@ -54,7 +54,7 @@ if __name__ == '__main__':
                 loss_ep['nce'].append(loss_nce.item())
                 loss += loss_nce
 
-            if cfg.mse:
+            if cfg.wmse:
                 h = torch.cat([h0, h1])
                 if cfg.w_iter == 1 and cfg.w_slice == 1:
                     z = head_mse(h)
@@ -79,7 +79,7 @@ if __name__ == '__main__':
         torch.save({
             'model': model.state_dict(),
             'head_nce': head_nce.state_dict() if cfg.nce else None,
-            'head_mse': head_mse.state_dict() if cfg.mse else None,
+            'head_mse': head_mse.state_dict() if cfg.wmse else None,
             'optimizer': optimizer.state_dict(),
         }, fname)
 

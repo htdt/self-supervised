@@ -4,7 +4,7 @@ from torchvision import models
 
 def get_cfg():
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--mse', action='store_true')
+    parser.add_argument('--wmse', action='store_true')
     parser.add_argument('--w_iter', type=int, default=1)
     parser.add_argument('--w_slice', type=int, default=1)
 
