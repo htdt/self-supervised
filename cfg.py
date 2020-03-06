@@ -4,7 +4,7 @@ from torchvision import models
 
 def get_cfg():
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--wmse', action='store_true')
+    parser.add_argument('--w_mse', action='store_true')
     parser.add_argument('--w_iter', type=int, default=1)
     parser.add_argument('--w_slice', type=int, default=1)
 
@@ -14,9 +14,6 @@ def get_cfg():
 
     parser.add_argument('--linear_head', action='store_true')
     parser.add_argument('--epoch', type=int, default=200)
-    parser.add_argument('--epoch_start', type=int, default=0)
-    parser.add_argument('--resume', type=str)
-    parser.add_argument('--fname', type=str)
     parser.add_argument('--eval_every', type=int, default=20)
     parser.add_argument('--emb', type=int, default=32)
     parser.add_argument('--l2', type=float, default=0)
