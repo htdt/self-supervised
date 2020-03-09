@@ -5,8 +5,7 @@ from torch.nn.functional import conv2d
 
 
 class Whitening2d(nn.Module):
-    def __init__(self, num_features, momentum=0.01, track_running_stats=True,
-                 eps=0):
+    def __init__(self, num_features, momentum=0.01, track_running_stats=True, eps=0):
         super(Whitening2d, self).__init__()
         self.num_features = num_features
         self.momentum = momentum
@@ -14,10 +13,10 @@ class Whitening2d(nn.Module):
         self.eps = eps
 
         if self.track_running_stats:
-            self.register_buffer('running_mean', torch.zeros(
-                [1, self.num_features, 1, 1]))
-            self.register_buffer('running_variance',
-                                 torch.eye(self.num_features))
+            self.register_buffer(
+                "running_mean", torch.zeros([1, self.num_features, 1, 1])
+            )
+            self.register_buffer("running_variance", torch.eye(self.num_features))
 
     def forward(self, x):
         x = x.unsqueeze(2).unsqueeze(3)
@@ -37,9 +36,11 @@ class Whitening2d(nn.Module):
         f_cov_shrinked = (1 - self.eps) * f_cov + self.eps * eye
 
         inv_sqrt = torch.triangular_solve(
-            eye, torch.cholesky(f_cov_shrinked), upper=False)[0]
+            eye, torch.cholesky(f_cov_shrinked), upper=False
+        )[0]
         inv_sqrt = inv_sqrt.contiguous().view(
-            self.num_features, self.num_features, 1, 1)
+            self.num_features, self.num_features, 1, 1
+        )
 
         decorrelated = conv2d(xn, inv_sqrt)
 
@@ -47,17 +48,20 @@ class Whitening2d(nn.Module):
             self.running_mean = torch.add(
                 self.momentum * m.detach(),
                 (1 - self.momentum) * self.running_mean,
-                out=self.running_mean)
+                out=self.running_mean,
+            )
             self.running_variance = torch.add(
                 self.momentum * f_cov.detach(),
                 (1 - self.momentum) * self.running_variance,
-                out=self.running_variance)
+                out=self.running_variance,
+            )
 
         return decorrelated.squeeze(2).squeeze(2)
 
     def extra_repr(self):
-        return 'features={}, eps={}, momentum={}'.format(
-            self.num_features, self.eps, self.momentum)
+        return "features={}, eps={}, momentum={}".format(
+            self.num_features, self.eps, self.momentum
+        )
 
 
 def get_head(out_size, emb, linear=False, whitening=False):
@@ -71,10 +75,9 @@ def get_head(out_size, emb, linear=False, whitening=False):
 
 def get_model(arch, dataset):
     model = getattr(models, arch)(pretrained=False)
-    if dataset != 'imagenet':
-        model.conv1 = nn.Conv2d(
-            3, 64, kernel_size=3, stride=1, padding=1, bias=False)
-    if dataset == 'cifar10' or dataset == 'cifar100':
+    if dataset != "imagenet":
+        model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+    if dataset == "cifar10" or dataset == "cifar100":
         model.maxpool = nn.Identity()
     out_size = model.fc.in_features
     model.fc = nn.Identity()

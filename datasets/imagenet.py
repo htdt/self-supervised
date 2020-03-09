@@ -5,19 +5,20 @@ from .base import BaseDataset
 
 
 def base_transform():
-    return T.Compose([
-        T.ToTensor(), T.Normalize((.485, .456, .406), (.229, .224, .225))])
+    return T.Compose(
+        [T.ToTensor(), T.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))]
+    )
 
 
 class ImageNet(BaseDataset):
     def ds_train(self):
-        return ImageFolder(root='data/imagenet/train', transform=MultiSample(
-            aug_transform(224, base_transform)))
+        t = MultiSample(aug_transform(224, base_transform))
+        return ImageFolder(root="data/imagenet/train", transform=t,)
 
     def ds_clf(self):
-        return ImageFolder(root='data/imagenet224/train',
-                           transform=base_transform())
+        t = base_transform()
+        return ImageFolder(root="data/imagenet224/train", transform=t)
 
     def ds_test(self):
-        return ImageFolder(root='data/imagenet224/val',
-                           transform=base_transform())
+        t = base_transform()
+        return ImageFolder(root="data/imagenet224/val", transform=t)

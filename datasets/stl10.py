@@ -5,24 +5,26 @@ from .base import BaseDataset
 
 
 def base_transform():
-    return T.Compose([
-        T.ToTensor(), T.Normalize((.43, .42, .39), (.27, .26, .27))])
+    return T.Compose(
+        [T.ToTensor(), T.Normalize((0.43, 0.42, 0.39), (0.27, 0.26, 0.27))]
+    )
 
 
 def test_transform():
-    return T.Compose([
-        T.Resize(70, interpolation=3), T.CenterCrop(64), base_transform()])
+    return T.Compose(
+        [T.Resize(70, interpolation=3), T.CenterCrop(64), base_transform()]
+    )
 
 
 class STL10(BaseDataset):
     def ds_train(self):
-        return S10(root='./data', split='train+unlabeled', download=True,
-                   transform=MultiSample(aug_transform(64, base_transform)))
+        t = MultiSample(aug_transform(64, base_transform))
+        return S10(root="./data", split="train+unlabeled", download=True, transform=t)
 
     def ds_clf(self):
-        return S10(root='./data', split='train', download=True,
-                   transform=test_transform())
+        t = test_transform()
+        return S10(root="./data", split="train", download=True, transform=t)
 
     def ds_test(self):
-        return S10(root='./data', split='test', download=True,
-                   transform=test_transform())
+        t = test_transform()
+        return S10(root="./data", split="test", download=True, transform=t)

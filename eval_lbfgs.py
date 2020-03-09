@@ -15,7 +15,8 @@ def get_data(model, loader):
 def eval_lbfgs(model, loader_clf, loader_test):
     model.eval()
     clf = LogisticRegression(
-        random_state=1337, solver='lbfgs', max_iter=1000, n_jobs=-1)
+        random_state=1337, solver="lbfgs", max_iter=1000, n_jobs=-1
+    )
     clf.fit(*get_data(model, loader_clf))
     x_test, y_test = get_data(model, loader_test)
     pred = clf.predict(x_test)

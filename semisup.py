@@ -12,44 +12,47 @@ import wandb
 from datasets.stl10 import base_transform
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--epoch', type=int, default=1000)
-    parser.add_argument('--epoch_head', type=int, default=200)
-    parser.add_argument('--fname', type=str)
-    parser.add_argument('--arch', type=str, default='resnet34')
-    parser.add_argument('--dataset', type=str, default='stl10')
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="")
+    parser.add_argument("--epoch", type=int, default=1000)
+    parser.add_argument("--epoch_head", type=int, default=200)
+    parser.add_argument("--fname", type=str)
+    parser.add_argument("--arch", type=str, default="resnet34")
+    parser.add_argument("--dataset", type=str, default="stl10")
     cfg = parser.parse_args()
     wandb.init(project="white_ss", config=cfg)
 
     model, out_size = get_model(cfg.arch, cfg.dataset)
     if cfg.fname is None:
-        print('evaluating random model')
+        print("evaluating random model")
     else:
         checkpoint = torch.load(cfg.fname)
-        model.load_state_dict(checkpoint['model'])
+        model.load_state_dict(checkpoint["model"])
 
     head = nn.Sequential(
-        nn.Linear(out_size, 2048),
-        nn.BatchNorm1d(2048),
-        nn.ReLU(),
-        nn.Linear(2048, 10)).cuda()
+        nn.Linear(out_size, 2048), nn.BatchNorm1d(2048), nn.ReLU(), nn.Linear(2048, 10)
+    ).cuda()
 
-    aug_t = T.Compose([
-        T.RandomCrop(64),
-        T.RandomHorizontalFlip(),
-        base_transform(),
-        T.RandomErasing(),
-    ])
-    test_t = T.Compose([T.TenCrop(64), T.Lambda(
-        lambda crops: torch.stack([base_transform()(c) for c in crops]))])
+    aug_t = T.Compose(
+        [
+            T.RandomCrop(64),
+            T.RandomHorizontalFlip(),
+            base_transform(),
+            T.RandomErasing(),
+        ]
+    )
+    test_t = T.Compose(
+        [
+            T.TenCrop(64),
+            T.Lambda(lambda crops: torch.stack([base_transform()(c) for c in crops])),
+        ]
+    )
 
-    ts_train = STL10(root='./data', split='train', download=True,
-                     transform=aug_t)
-    dl_train = DataLoader(ts_train, batch_size=1000, shuffle=True,
-                          num_workers=8, pin_memory=True)
-    ts_test = STL10(root='./data', split='test', download=True,
-                    transform=test_t)
+    ts_train = STL10(root="./data", split="train", download=True, transform=aug_t)
+    dl_train = DataLoader(
+        ts_train, batch_size=1000, shuffle=True, num_workers=8, pin_memory=True
+    )
+    ts_test = STL10(root="./data", split="test", download=True, transform=test_t)
     dl_test = DataLoader(ts_test, batch_size=100, num_workers=8)
 
     def test():
@@ -81,7 +84,7 @@ if __name__ == '__main__':
             criterion(head(x), y).backward()
             optimizer.step()
         scheduler.step()
-    wandb.log({'acc_head': test()})
+    wandb.log({"acc_head": test()})
 
     param = list(model.parameters()) + list(head.parameters())
     optimizer = optim.Adam(param, lr=1e-4, weight_decay=1e-4)
@@ -97,6 +100,6 @@ if __name__ == '__main__':
             optimizer.step()
             loss_ep.append(loss.item())
         if (ep + 1) % 20 == 0:
-            wandb.log({'acc': test()}, commit=False)
+            wandb.log({"acc": test()}, commit=False)
             model.train(), head.train()
-        wandb.log({'loss': np.mean(loss_ep), 'ep': ep})
+        wandb.log({"loss": np.mean(loss_ep), "ep": ep})

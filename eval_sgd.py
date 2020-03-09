@@ -4,10 +4,10 @@ import torch.optim as optim
 
 
 def get_data(model, loader, output_size, device):
-    xs = torch.empty(len(loader), loader.batch_size, output_size,
-                     dtype=torch.float32, device=device)
-    ys = torch.empty(len(loader), loader.batch_size,
-                     dtype=torch.long, device=device)
+    xs = torch.empty(
+        len(loader), loader.batch_size, output_size, dtype=torch.float32, device=device
+    )
+    ys = torch.empty(len(loader), loader.batch_size, dtype=torch.long, device=device)
     with torch.no_grad():
         for i, (x, y) in enumerate(loader):
             x = x.cuda()
@@ -20,8 +20,8 @@ def get_data(model, loader, output_size, device):
 
 def eval_sgd(model, output_size, loader_clf, loader_test, epoch=300):
     model.eval()
-    x_train, y_train = get_data(model, loader_clf, output_size, 'cuda')
-    x_test, y_test = get_data(model, loader_test, output_size, 'cuda')
+    x_train, y_train = get_data(model, loader_clf, output_size, "cuda")
+    x_test, y_test = get_data(model, loader_test, output_size, "cuda")
     # torch.save({
     #     'x_train': x_train,
     #     'y_train': y_train,

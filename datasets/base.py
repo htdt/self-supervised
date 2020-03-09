@@ -24,29 +24,35 @@ class BaseDataset(metaclass=ABCMeta):
     @property
     @lru_cache()
     def train(self):
-        return DataLoader(dataset=self.ds_train(),
-                          batch_size=self.bs_train,
-                          shuffle=True,
-                          num_workers=8,
-                          pin_memory=True,
-                          drop_last=True)
+        return DataLoader(
+            dataset=self.ds_train(),
+            batch_size=self.bs_train,
+            shuffle=True,
+            num_workers=8,
+            pin_memory=True,
+            drop_last=True,
+        )
 
     @property
     @lru_cache()
     def clf(self):
-        return DataLoader(dataset=self.ds_clf(),
-                          batch_size=self.bs_clf,
-                          shuffle=True,
-                          num_workers=8,
-                          pin_memory=True,
-                          drop_last=True)
+        return DataLoader(
+            dataset=self.ds_clf(),
+            batch_size=self.bs_clf,
+            shuffle=True,
+            num_workers=8,
+            pin_memory=True,
+            drop_last=True,
+        )
 
     @property
     @lru_cache()
     def test(self):
-        return DataLoader(dataset=self.ds_test(),
-                          batch_size=self.bs_test,
-                          shuffle=False,
-                          num_workers=8,
-                          pin_memory=True,
-                          drop_last=False)
+        return DataLoader(
+            dataset=self.ds_test(),
+            batch_size=self.bs_test,
+            shuffle=False,
+            num_workers=8,
+            pin_memory=True,
+            drop_last=False,
+        )

@@ -14,7 +14,7 @@ from eval_sgd import eval_sgd
 from datasets import get_ds
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cfg = get_cfg()
     wrun = wandb.init(project="white_ss", config=cfg)
 
@@ -27,18 +27,24 @@ if __name__ == '__main__':
         target_nce = torch.arange(cfg.bs).cuda()
         params += list(head_nce.parameters())
     if cfg.w_mse:
-        head_mse = get_head(out_size, cfg.emb, cfg.linear_head,
-                            whitening=True)
+        head_mse = get_head(out_size, cfg.emb, cfg.linear_head, whitening=True)
         params += list(head_mse.parameters())
 
     optimizer = optim.Adam(params, lr=cfg.lr, weight_decay=cfg.l2)
-    scheduler = MultiStepLR(optimizer, milestones=cfg.drop)
+    scheduler = MultiStepLR(optimizer, milestones=cfg.drop, gamma=cfg.drop_gamma)
 
-    fname = f'data/{wrun.id}.pt'
+    fname = f"data/{wrun.id}.pt"
+    lr_warmup = 0
     cudnn.benchmark = True
     for ep in trange(cfg.epoch, position=0):
         loss_ep = defaultdict(list)
         for (x0, x1), _ in tqdm(ds.train, position=1):
+            if lr_warmup < 500:
+                lr_scale = (lr_warmup + 1) / 500
+                for pg in optimizer.param_groups:
+                    pg["lr"] = cfg.lr * lr_scale
+                lr_warmup += 1
+
             optimizer.zero_grad()
             h0 = model(x0.cuda(non_blocking=True))
             h1 = model(x1.cuda(non_blocking=True))
@@ -49,45 +55,49 @@ if __name__ == '__main__':
                 if cfg.norm:
                     z0 = normalize(z0, p=2, dim=1)
                     z1 = normalize(z1, p=2, dim=1)
-                logits = z0 @ z1.t() / cfg.tau
+                logits = [z0 @ z1.t(), z0 @ z0.t(), z1 @ z1.t()]
+                logits = torch.cat(logits, dim=1) / cfg.tau
                 loss_nce = cross_entropy(logits, target_nce)
-                loss_ep['nce'].append(loss_nce.item())
+                loss_ep["nce"].append(loss_nce.item())
                 loss += loss_nce
 
             if cfg.w_mse:
                 h = torch.cat([h0, h1])
                 if cfg.w_iter == 1 and cfg.w_slice == 1:
                     z = head_mse(h)
-                    loss_mse = mse_loss(z[:len(h0)], z[len(h0):])
+                    loss_mse = mse_loss(z[: len(h0)], z[len(h0) :])
                 else:
                     loss_mse = 0
                     for _ in range(cfg.w_iter):
-                        z = torch.empty(len(h), cfg.emb, device='cuda')
+                        z = torch.empty(len(h), cfg.emb, device="cuda")
                         perm = torch.randperm(len(h)).view(cfg.w_slice, -1)
                         for idx in perm:
                             z[idx] = head_mse(h[idx])
-                        loss_mse += mse_loss(z[:len(h0)], z[len(h0):])
+                        loss_mse += mse_loss(z[: len(h0)], z[len(h0) :])
                     loss_mse /= cfg.w_iter
-                loss_ep['mse'].append(loss_mse.item())
+                loss_ep["mse"].append(loss_mse.item())
                 loss += loss_mse
 
             loss.backward()
             optimizer.step()
-            loss_ep['sum'].append(loss.item())
+            loss_ep["sum"].append(loss.item())
         scheduler.step()
 
-        torch.save({
-            'model': model.state_dict(),
-            'head_nce': head_nce.state_dict() if cfg.nce else None,
-            'head_mse': head_mse.state_dict() if cfg.w_mse else None,
-            'optimizer': optimizer.state_dict(),
-        }, fname)
+        torch.save(
+            {
+                "model": model.state_dict(),
+                "head_nce": head_nce.state_dict() if cfg.nce else None,
+                "head_mse": head_mse.state_dict() if cfg.w_mse else None,
+                "optimizer": optimizer.state_dict(),
+            },
+            fname,
+        )
 
         if (ep + 1) % cfg.eval_every == 0:
             acc = eval_sgd(model, out_size, ds.clf, ds.test, 500)
-            wandb.log({'acc': acc}, commit=False)
+            wandb.log({"acc": acc}, commit=False)
             model.train()
 
         loss_ep = {k: np.mean(loss_ep[k]) for k in loss_ep}
-        wandb.log({'loss': loss_ep, 'ep': ep})
+        wandb.log({"loss": loss_ep, "ep": ep})
     wandb.save(fname)

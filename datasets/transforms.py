@@ -2,13 +2,15 @@ import torchvision.transforms as T
 
 
 def aug_transform(crop, base_transform):
-    return T.Compose([
-        T.RandomApply([T.ColorJitter(.4, .4, .4, .1)], p=.8),
-        T.RandomGrayscale(p=.2),
-        T.RandomResizedCrop(crop, interpolation=3),
-        T.RandomHorizontalFlip(p=.5),
-        base_transform()
-    ])
+    return T.Compose(
+        [
+            T.RandomApply([T.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
+            T.RandomGrayscale(p=0.2),
+            T.RandomResizedCrop(crop, interpolation=3),
+            T.RandomHorizontalFlip(p=0.5),
+            base_transform(),
+        ]
+    )
 
 
 class MultiSample:
