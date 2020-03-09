@@ -1,5 +1,7 @@
 ## Installation
-`docker/Dockerfile`
+```
+docker/Dockerfile
+```
 
 ## Usage
 ```
