@@ -5,4 +5,4 @@ if [ -z "$1" ]
 	else
 		GPU="device=${1}"
 fi
-docker run -v ~/white_ss:/workspace -v ~/ILSVRC2012:/imagenet --rm --gpus $GPU --shm-size 16G -it white_ss /bin/bash
+docker run -v ~/white_ss:/workspace -v ~/ILSVRC2012:/imagenet -v ~/imagenet224:/imagenet224 --rm --gpus $GPU --shm-size 16G -it white_ss /bin/bash

@@ -13,12 +13,12 @@ def base_transform():
 class ImageNet(BaseDataset):
     def ds_train(self):
         t = MultiSample(aug_transform(224, base_transform))
-        return ImageFolder(root="data/imagenet/train", transform=t,)
+        return ImageFolder(root="/imagenet/train", transform=t)
 
     def ds_clf(self):
         t = base_transform()
-        return ImageFolder(root="data/imagenet224/train", transform=t)
+        return ImageFolder(root="/imagenet224/train", transform=t)
 
     def ds_test(self):
         t = base_transform()
-        return ImageFolder(root="data/imagenet224/val", transform=t)
+        return ImageFolder(root="/imagenet224/val", transform=t)
