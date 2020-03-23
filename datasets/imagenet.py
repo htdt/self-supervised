@@ -1,7 +1,18 @@
+import random
 from torchvision.datasets import ImageFolder
 import torchvision.transforms as T
-from .transforms import MultiSample, aug_transform
+from PIL import ImageFilter
+from .transforms import MultiSample
 from .base import BaseDataset
+
+
+class RandomBlur:
+    def __init__(self, r0, r1):
+        self.r0, self.r1 = r0, r1
+
+    def __call__(self, image):
+        r = random.uniform(self.r0, self.r1)
+        return image.filter(ImageFilter.GaussianBlur(r))
 
 
 def base_transform():
@@ -10,9 +21,22 @@ def base_transform():
     )
 
 
+def aug_transform():
+    return T.Compose(
+        [
+            T.RandomApply([T.ColorJitter(0.8, 0.8, 0.8, 0.2)], p=0.8),
+            T.RandomGrayscale(p=0.2),
+            T.RandomResizedCrop(224, interpolation=3),
+            T.RandomHorizontalFlip(p=0.5),
+            T.RandomApply([RandomBlur(1, 20)], p=0.5),
+            base_transform(),
+        ]
+    )
+
+
 class ImageNet(BaseDataset):
     def ds_train(self):
-        t = MultiSample(aug_transform(224, base_transform))
+        t = MultiSample(aug_transform())
         return ImageFolder(root="/imagenet/train", transform=t)
 
     def ds_clf(self):
