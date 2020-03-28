@@ -57,7 +57,7 @@ def get_cfg():
     parser.add_argument(
         "--arch",
         type=str,
-        choices=dir(models),
+        choices=dir(models) + ["DIM32", "DIM64"],
         default="resnet18",
         help="encoder architecture",
     )

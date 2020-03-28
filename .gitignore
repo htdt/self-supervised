@@ -3,4 +3,6 @@
 data
 data/**
 output/**
+wandb/
 **/wandb/**
+docker/env.list

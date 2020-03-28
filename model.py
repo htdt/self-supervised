@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torchvision import models
 from torch.nn.functional import conv2d
+from dim_encoder import DIM32, DIM64
 
 
 class Whitening2d(nn.Module):
@@ -74,11 +75,19 @@ def get_head(out_size, emb, linear=False, whitening=False):
 
 
 def get_model(arch, dataset):
-    model = getattr(models, arch)(pretrained=False)
-    if dataset != "imagenet":
-        model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
-    if dataset == "cifar10" or dataset == "cifar100":
-        model.maxpool = nn.Identity()
-    out_size = model.fc.in_features
-    model.fc = nn.Identity()
+    if arch == "DIM32":
+        model, out_size = DIM32(), 1024
+    elif arch == "DIM64":
+        model, out_size = DIM64(), 4096
+    else:
+        model = getattr(models, arch)(pretrained=False)
+        if dataset != "imagenet":
+            model.conv1 = nn.Conv2d(
+                3, 64, kernel_size=3, stride=1, padding=1, bias=False
+            )
+        if dataset == "cifar10" or dataset == "cifar100":
+            model.maxpool = nn.Identity()
+        out_size = model.fc.in_features
+        model.fc = nn.Identity()
+
     return nn.DataParallel(model).cuda().train(), out_size
