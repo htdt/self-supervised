@@ -1,13 +1,20 @@
 import torchvision.transforms as T
 
 
-def aug_transform(crop, base_transform):
+def aug_transform(crop, base_transform, cfg):
     return T.Compose(
         [
-            T.RandomApply([T.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
-            T.RandomGrayscale(p=0.2),
-            T.RandomResizedCrop(crop, interpolation=3),
-            T.RandomHorizontalFlip(p=0.5),
+            T.RandomApply(
+                [T.ColorJitter(cfg.cj0, cfg.cj1, cfg.cj2, cfg.cj3)], p=cfg.cj_p
+            ),
+            T.RandomGrayscale(p=cfg.gs_p),
+            T.RandomResizedCrop(
+                crop,
+                scale=(cfg.crop_s0, cfg.crop_s1),
+                ratio=(cfg.crop_r0, cfg.crop_r1),
+                interpolation=3,
+            ),
+            T.RandomHorizontalFlip(p=cfg.hf_p),
             base_transform(),
         ]
     )

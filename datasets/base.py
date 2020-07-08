@@ -4,10 +4,11 @@ from torch.utils.data import DataLoader
 
 
 class BaseDataset(metaclass=ABCMeta):
-    def __init__(self, bs_train, bs_clf=1000, bs_test=1000):
+    def __init__(self, bs_train, aug_cfg, bs_clf=1000, bs_test=1000):
         self.bs_train = bs_train
         self.bs_clf = bs_clf
         self.bs_test = bs_test
+        self.aug_cfg = aug_cfg
 
     @abstractmethod
     def ds_train(self):

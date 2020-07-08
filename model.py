@@ -3,6 +3,7 @@ import torch.nn as nn
 from torchvision import models
 from torch.nn.functional import conv2d
 from dim_encoder import DIM32, DIM64
+from ZCANorm import ZCANormSVDPI
 
 
 class Whitening2d(nn.Module):
@@ -65,12 +66,19 @@ class Whitening2d(nn.Module):
         )
 
 
-def get_head(out_size, emb, linear=False, whitening=False):
-    h = nn.Linear(out_size, emb)
-    if not linear:
-        h = nn.Sequential(nn.Linear(out_size, out_size), nn.ReLU(), h)
+def get_head(out_size, emb, layers=2, whitening=False, w_eps=0, method="cholesky"):
+    x = []
+    for _ in range(layers - 1):
+        x += [nn.Linear(out_size, out_size), nn.ReLU()]
+    h = nn.Sequential(*x, nn.Linear(out_size, emb))
+
     if whitening:
-        h = nn.Sequential(h, Whitening2d(emb, track_running_stats=False))
+        if method == "cholesky":
+            h = nn.Sequential(h, Whitening2d(emb, eps=w_eps, track_running_stats=False))
+        elif method == "zca":
+            h = nn.Sequential(h, ZCANormSVDPI(emb, eps=w_eps))
+        else:
+            raise Exception("unknown method")
     return h.cuda().train()
 
 
