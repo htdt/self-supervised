@@ -66,20 +66,34 @@ class Whitening2d(nn.Module):
         )
 
 
-def get_head(out_size, emb, layers=2, whitening=False, w_eps=0, method="cholesky"):
+def get_head(
+    out_size,
+    emb,
+    layers=2,
+    whitening=False,
+    w_eps=0,
+    method="cholesky",
+    add_bn=False,
+    add_bn_last=False,
+):
     x = []
     for _ in range(layers - 1):
-        x += [nn.Linear(out_size, out_size), nn.ReLU()]
-    h = nn.Sequential(*x, nn.Linear(out_size, emb))
+        x.append(nn.Linear(out_size, out_size))
+        if add_bn:
+            x.append(nn.BatchNorm1d(out_size))
+        x.append(nn.ReLU())
+    x.append(nn.Linear(out_size, emb))
+    if add_bn_last:
+        x.append(nn.BatchNorm1d(emb))
 
     if whitening:
         if method == "cholesky":
-            h = nn.Sequential(h, Whitening2d(emb, eps=w_eps, track_running_stats=False))
+            x.append(Whitening2d(emb, eps=w_eps, track_running_stats=False))
         elif method == "zca":
-            h = nn.Sequential(h, ZCANormSVDPI(emb, eps=w_eps))
+            x.append(ZCANormSVDPI(emb, eps=w_eps))
         else:
             raise Exception("unknown method")
-    return h.cuda().train()
+    return nn.Sequential(*x).cuda().train()
 
 
 def get_model(arch, dataset):

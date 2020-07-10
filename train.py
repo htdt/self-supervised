@@ -16,7 +16,6 @@ from datasets import get_ds
 
 if __name__ == "__main__":
     cfg = get_cfg()
-    cfg.w_mse = True
     wrun = wandb.init(project="white_ss", config=cfg)
 
     ds = get_ds(cfg.dataset)(cfg.bs, cfg)
@@ -35,27 +34,33 @@ if __name__ == "__main__":
             whitening=True,
             w_eps=cfg.w_eps,
             method=cfg.method,
+            add_bn=cfg.add_bn,
+            add_bn_last=cfg.add_bn_last,
         )
         params += list(head_mse.parameters())
 
-    optimizer = optim.SGD(
-        params, lr=cfg.lr, weight_decay=cfg.weight_decay, momentum=cfg.momentum
+    optimizer = optim.Adam(
+        params, lr=cfg.lr, betas=(0.8, 0.999), weight_decay=1e-5, eps=1e-8
     )
-    scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=cfg.T0, eta_min=cfg.eta_min)
-    # scheduler = MultiStepLR(optimizer, milestones=cfg.drop, gamma=cfg.drop_gamma)
+    if cfg.lr_step == "cos":
+        scheduler = CosineAnnealingWarmRestarts(
+            optimizer, T_0=cfg.T0, T_mult=cfg.Tmult, eta_min=cfg.eta_min
+        )
+    elif cfg.lr_step == "step":
+        scheduler = MultiStepLR(optimizer, milestones=cfg.drop, gamma=cfg.drop_gamma)
 
     fname = f"data/{wrun.id}.pt"
-    # lr_warmup = 0
+    lr_warmup = 0 if cfg.lr_warmup else 500
     cudnn.benchmark = True
     for ep in trange(cfg.epoch, position=0):
         loss_ep = defaultdict(list)
         iters = len(ds.train)
         for n_iter, ((x0, x1), _) in enumerate(tqdm(ds.train, position=1)):
-            # if lr_warmup < 500:
-            #     lr_scale = (lr_warmup + 1) / 500
-            #     for pg in optimizer.param_groups:
-            #         pg["lr"] = cfg.lr * lr_scale
-            #     lr_warmup += 1
+            if lr_warmup < 500:
+                lr_scale = (lr_warmup + 1) / 500
+                for pg in optimizer.param_groups:
+                    pg["lr"] = cfg.lr * lr_scale
+                lr_warmup += 1
 
             optimizer.zero_grad()
             h0 = model(x0.cuda(non_blocking=True))
@@ -93,7 +98,11 @@ if __name__ == "__main__":
             loss.backward()
             optimizer.step()
             loss_ep["sum"].append(loss.item())
-            scheduler.step(ep + n_iter / iters)
+            if cfg.lr_step == "cos" and lr_warmup >= 500:
+                scheduler.step(ep + n_iter / iters)
+
+        if cfg.lr_step == "step":
+            scheduler.step()
 
         torch.save(
             {
