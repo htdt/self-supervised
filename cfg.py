@@ -14,26 +14,28 @@ def get_cfg():
     parser.add_argument("--crop_s0", type=float, default=0.2)
     parser.add_argument("--crop_s1", type=float, default=1.0)
     parser.add_argument("--crop_r0", type=float, default=0.75)
-    parser.add_argument("--crop_r1", type=float, default=1.33333)
+    parser.add_argument("--crop_r1", type=float, default=(4 / 3))
     parser.add_argument("--hf_p", type=float, default=0.5)
 
-    parser.add_argument("--lr_warmup", action="store_true")
+    parser.add_argument("--no_lr_warmup", dest="lr_warmup", action="store_false")
+    parser.add_argument("--no_add_bn", dest="add_bn", action="store_false")
+    parser.add_argument("--no_w_mse", dest="w_mse", action="store_false")
+
+    parser.add_argument("--save_model", action="store_true")
     parser.add_argument(
         "--lr_step", type=str, choices=["cos", "step", "none"], default="cos"
     )
-    parser.add_argument("--lr", type=float, default=1e-3, help="learning rate")
-    parser.add_argument("--eta_min", type=float, default=0)
-    parser.add_argument("--T0", type=int, default=10)
+    parser.add_argument("--lr", type=float, default=5e-4, help="learning rate")
+    parser.add_argument("--eta_min", type=float, default=5e-5)
+    parser.add_argument("--T0", type=int, default=20)
     parser.add_argument("--Tmult", type=int, default=1)
     parser.add_argument("--w_eps", type=float, default=0)
     parser.add_argument("--head_layers", type=int, default=2)
     parser.add_argument(
         "--method", type=str, choices=["cholesky", "zca"], default="cholesky"
     )
-    parser.add_argument("--add_bn", action="store_true")
     parser.add_argument("--add_bn_last", action="store_true")
 
-    parser.add_argument("--w_mse", action="store_true", help="use W-MSE loss")
     parser.add_argument(
         "--w_iter",
         type=int,
@@ -61,7 +63,7 @@ def get_cfg():
         "--eval_every", type=int, default=20, help="how often to evaluate"
     )
     parser.add_argument("--emb", type=int, default=64, help="embedding size")
-    parser.add_argument("--bs", type=int, default=128, help="batch size")
+    parser.add_argument("--bs", type=int, default=190, help="batch size")
     parser.add_argument(
         "--drop",
         type=int,

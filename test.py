@@ -22,7 +22,7 @@ if __name__ == "__main__":
         checkpoint = torch.load(cfg.fname)
         model.load_state_dict(checkpoint["model"])
 
-    ds = get_ds(cfg.dataset)(None)
+    ds = get_ds(cfg.dataset)(None, cfg)
     if cfg.clf == "sgd":
         acc = eval_sgd(model, out_size, ds.clf, ds.test, 500)
     elif cfg.clf == "lbfgs":

@@ -104,6 +104,15 @@ if __name__ == "__main__":
         if cfg.lr_step == "step":
             scheduler.step()
 
+        if (ep + 1) % cfg.eval_every == 0:
+            acc = eval_sgd(model, out_size, ds.clf, ds.test, 500)
+            wandb.log({"acc": acc}, commit=False)
+            model.train()
+
+        loss_ep = {k: np.mean(loss_ep[k]) for k in loss_ep}
+        wandb.log({"loss": loss_ep, "ep": ep})
+
+    if cfg.save_model:
         torch.save(
             {
                 "model": model.state_dict(),
@@ -113,12 +122,4 @@ if __name__ == "__main__":
             },
             fname,
         )
-
-        if (ep + 1) % cfg.eval_every == 0:
-            acc = eval_sgd(model, out_size, ds.clf, ds.test, 500)
-            wandb.log({"acc": acc}, commit=False)
-            model.train()
-
-        loss_ep = {k: np.mean(loss_ep[k]) for k in loss_ep}
-        wandb.log({"loss": loss_ep, "ep": ep})
-    wandb.save(fname)
+        wandb.save(fname)
