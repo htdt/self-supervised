@@ -1,4 +1,3 @@
-from collections import defaultdict
 from tqdm import trange, tqdm
 import numpy as np
 import wandb
@@ -11,6 +10,7 @@ import torch.backends.cudnn as cudnn
 from model import get_model, get_head
 from cfg import get_cfg
 from eval_sgd import eval_sgd
+from eval_knn import eval_knn
 from datasets import get_ds
 
 
@@ -21,26 +21,13 @@ if __name__ == "__main__":
     ds = get_ds(cfg.dataset)(cfg.bs, cfg)
     model, out_size = get_model(cfg.arch, cfg.dataset)
     params = list(model.parameters())
-
+    head = get_head(out_size, cfg)
+    params += list(head.parameters())
     if cfg.nce:
-        head_nce = get_head(out_size, cfg.emb, cfg.head_layers)
         target_nce = torch.arange(cfg.bs).cuda()
-        params += list(head_nce.parameters())
-    if cfg.w_mse:
-        head_mse = get_head(
-            out_size,
-            cfg.emb,
-            layers=cfg.head_layers,
-            whitening=True,
-            w_eps=cfg.w_eps,
-            method=cfg.method,
-            add_bn=cfg.add_bn,
-            add_bn_last=cfg.add_bn_last,
-        )
-        params += list(head_mse.parameters())
 
     optimizer = optim.Adam(
-        params, lr=cfg.lr, betas=(0.8, 0.999), weight_decay=1e-5, eps=1e-8
+        params, lr=cfg.lr, betas=(cfg.adam_b0, 0.999), weight_decay=cfg.adam_l2
     )
     if cfg.lr_step == "cos":
         scheduler = CosineAnnealingWarmRestarts(
@@ -53,9 +40,9 @@ if __name__ == "__main__":
     lr_warmup = 0 if cfg.lr_warmup else 500
     cudnn.benchmark = True
     for ep in trange(cfg.epoch, position=0):
-        loss_ep = defaultdict(list)
+        loss_ep = []
         iters = len(ds.train)
-        for n_iter, ((x0, x1), _) in enumerate(tqdm(ds.train, position=1)):
+        for n_iter, (samples, _) in enumerate(tqdm(ds.train, position=1)):
             if lr_warmup < 500:
                 lr_scale = (lr_warmup + 1) / 500
                 for pg in optimizer.param_groups:
@@ -63,41 +50,32 @@ if __name__ == "__main__":
                 lr_warmup += 1
 
             optimizer.zero_grad()
-            h0 = model(x0.cuda(non_blocking=True))
-            h1 = model(x1.cuda(non_blocking=True))
             loss = 0
-
-            if cfg.nce:
-                z0, z1 = head_nce(h0), head_nce(h1)
-                if cfg.norm:
-                    z0 = normalize(z0, p=2, dim=1)
-                    z1 = normalize(z1, p=2, dim=1)
-                logits = [z0 @ z1.t(), z0 @ z0.t(), z1 @ z1.t()]
-                logits = torch.cat(logits, dim=1) / cfg.tau
-                loss_nce = cross_entropy(logits, target_nce)
-                loss_ep["nce"].append(loss_nce.item())
-                loss += loss_nce
+            h = [model(x.cuda(non_blocking=True)) for x in samples]
+            h_len = len(h[0])
+            h = torch.cat(h)
+            z = head(h)
 
             if cfg.w_mse:
-                h = torch.cat([h0, h1])
-                if cfg.w_iter == 1 and cfg.w_slice == 1:
-                    z = head_mse(h)
-                    loss_mse = mse_loss(z[: len(h0)], z[len(h0) :])
-                else:
-                    loss_mse = 0
-                    for _ in range(cfg.w_iter):
-                        z = torch.empty(len(h), cfg.emb, device="cuda")
-                        perm = torch.randperm(len(h)).view(cfg.w_slice, -1)
-                        for idx in perm:
-                            z[idx] = head_mse(h[idx])
-                        loss_mse += mse_loss(z[: len(h0)], z[len(h0) :])
-                    loss_mse /= cfg.w_iter
-                loss_ep["mse"].append(loss_mse.item())
-                loss += loss_mse
+                for i in range(len(samples) - 1):
+                    for j in range(i + 1, len(samples)):
+                        x0 = z[i * h_len : (i + 1) * h_len]
+                        x1 = z[j * h_len : (j + 1) * h_len]
+                        loss += mse_loss(x0, x1)
+                loss /= sum(range(len(samples) - 1))
+
+            if cfg.nce:
+                if cfg.norm:
+                    z = normalize(z, p=2, dim=1)
+                assert len(samples) == 2
+                x0, x1 = z[:h_len], z[h_len:]
+                logits = [x0 @ x1.t(), x0 @ x0.t(), x1 @ x1.t()]
+                logits = torch.cat(logits, dim=1) / cfg.tau
+                loss += cross_entropy(logits, target_nce)
 
             loss.backward()
             optimizer.step()
-            loss_ep["sum"].append(loss.item())
+            loss_ep.append(loss.item())
             if cfg.lr_step == "cos" and lr_warmup >= 500:
                 scheduler.step(ep + n_iter / iters)
 
@@ -105,19 +83,18 @@ if __name__ == "__main__":
             scheduler.step()
 
         if (ep + 1) % cfg.eval_every == 0:
+            acc_knn = eval_knn(model, out_size, ds.clf, ds.test, cfg.knn)
             acc = eval_sgd(model, out_size, ds.clf, ds.test, 500)
-            wandb.log({"acc": acc}, commit=False)
+            wandb.log({"acc": acc, "acc_knn": acc_knn}, commit=False)
             model.train()
 
-        loss_ep = {k: np.mean(loss_ep[k]) for k in loss_ep}
-        wandb.log({"loss": loss_ep, "ep": ep})
+        wandb.log({"loss": np.mean(loss_ep), "ep": ep})
 
     if cfg.save_model:
         torch.save(
             {
                 "model": model.state_dict(),
-                "head_nce": head_nce.state_dict() if cfg.nce else None,
-                "head_mse": head_mse.state_dict() if cfg.w_mse else None,
+                "head": head.state_dict(),
                 "optimizer": optimizer.state_dict(),
             },
             fname,

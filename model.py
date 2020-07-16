@@ -66,31 +66,24 @@ class Whitening2d(nn.Module):
         )
 
 
-def get_head(
-    out_size,
-    emb,
-    layers=2,
-    whitening=False,
-    w_eps=0,
-    method="cholesky",
-    add_bn=False,
-    add_bn_last=False,
-):
+def get_head(out_size, cfg):
     x = []
-    for _ in range(layers - 1):
-        x.append(nn.Linear(out_size, out_size))
-        if add_bn:
-            x.append(nn.BatchNorm1d(out_size))
+    in_size = out_size
+    for _ in range(cfg.head_layers - 1):
+        x.append(nn.Linear(in_size, cfg.head_size))
+        if cfg.add_bn:
+            x.append(nn.BatchNorm1d(cfg.head_size))
         x.append(nn.ReLU())
-    x.append(nn.Linear(out_size, emb))
-    if add_bn_last:
-        x.append(nn.BatchNorm1d(emb))
+        in_size = cfg.head_size
+    x.append(nn.Linear(in_size, cfg.emb))
+    if cfg.add_bn_last:
+        x.append(nn.BatchNorm1d(cfg.emb))
 
-    if whitening:
-        if method == "cholesky":
-            x.append(Whitening2d(emb, eps=w_eps, track_running_stats=False))
-        elif method == "zca":
-            x.append(ZCANormSVDPI(emb, eps=w_eps))
+    if cfg.w_mse:
+        if cfg.method == "cholesky":
+            x.append(Whitening2d(cfg.emb, eps=cfg.w_eps, track_running_stats=False))
+        elif cfg.method == "zca":
+            x.append(ZCANormSVDPI(cfg.emb, eps=cfg.w_eps))
         else:
             raise Exception("unknown method")
     return nn.Sequential(*x).cuda().train()
