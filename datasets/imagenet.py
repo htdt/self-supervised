@@ -12,7 +12,7 @@ class RandomBlur:
 
     def __call__(self, image):
         r = random.uniform(self.r0, self.r1)
-        return image.filter(ImageFilter.GaussianBlur(r))
+        return image.filter(ImageFilter.GaussianBlur(radius=r))
 
 
 def base_transform():
@@ -28,7 +28,7 @@ def aug_transform():
             T.RandomGrayscale(p=0.2),
             T.RandomResizedCrop(224, interpolation=3),
             T.RandomHorizontalFlip(p=0.5),
-            T.RandomApply([RandomBlur(1, 20)], p=0.5),
+            T.RandomApply([RandomBlur(0.1, 2.0)], p=0.5),  # 1, 20
             base_transform(),
         ]
     )
@@ -36,7 +36,7 @@ def aug_transform():
 
 class ImageNet(BaseDataset):
     def ds_train(self):
-        t = MultiSample(aug_transform())
+        t = MultiSample(aug_transform(), n=self.aug_cfg.num_samples)
         return ImageFolder(root="/imagenet/train", transform=t)
 
     def ds_clf(self):

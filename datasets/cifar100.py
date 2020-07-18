@@ -12,7 +12,9 @@ def base_transform():
 
 class CIFAR100(BaseDataset):
     def ds_train(self):
-        t = MultiSample(aug_transform(32, base_transform))
+        t = MultiSample(
+            aug_transform(32, base_transform, self.aug_cfg), n=self.aug_cfg.num_samples
+        )
         return C100(root="./data", train=True, download=True, transform=t,)
 
     def ds_clf(self):

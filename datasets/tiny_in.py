@@ -12,7 +12,9 @@ def base_transform():
 
 class TinyImageNet(BaseDataset):
     def ds_train(self):
-        t = MultiSample(aug_transform(64, base_transform))
+        t = MultiSample(
+            aug_transform(64, base_transform, self.aug_cfg), n=self.aug_cfg.num_samples
+        )
         return ImageFolder(root="data/tiny-imagenet-200/train", transform=t)
 
     def ds_clf(self):
