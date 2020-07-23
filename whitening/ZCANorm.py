@@ -1,7 +1,7 @@
 import torch
 from torch.nn.parameter import Parameter
 import torch.nn as nn
-from torch_utils import power_iteration_unstable, power_iteration_once
+from whitening.torch_utils import power_iteration_unstable, power_iteration_once
 
 
 class ZCANormSVDunstable(nn.Module):

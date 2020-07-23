@@ -14,6 +14,24 @@ from eval_knn import eval_knn
 from datasets import get_ds
 
 
+def contrastive_loss(x0, x1, tau, norm=True):
+    # https://github.com/google-research/simclr/blob/master/objective.py
+    bsize = x0.shape[0]
+    target = torch.arange(bsize).cuda()
+    eye_mask = torch.eye(bsize).cuda() * 1e9
+    if norm:
+        x0 = normalize(x0, p=2, dim=1)
+        x1 = normalize(x1, p=2, dim=1)
+    logits00 = x0 @ x0.t() / tau - eye_mask
+    logits11 = x1 @ x1.t() / tau - eye_mask
+    logits01 = x0 @ x1.t() / tau
+    logits10 = x1 @ x0.t() / tau
+    return (
+        cross_entropy(torch.cat([logits01, logits00], dim=1), target)
+        + cross_entropy(torch.cat([logits10, logits11], dim=1), target)
+    ) / 2
+
+
 if __name__ == "__main__":
     cfg = get_cfg()
     wrun = wandb.init(project="white_ss", config=cfg)
@@ -23,8 +41,6 @@ if __name__ == "__main__":
     params = list(model.parameters())
     head = get_head(out_size, cfg)
     params += list(head.parameters())
-    if cfg.nce:
-        target_nce = torch.arange(cfg.bs).cuda()
 
     optimizer = optim.Adam(
         params, lr=cfg.lr, betas=(cfg.adam_b0, 0.999), weight_decay=cfg.adam_l2
@@ -36,7 +52,22 @@ if __name__ == "__main__":
     elif cfg.lr_step == "step":
         scheduler = MultiStepLR(optimizer, milestones=cfg.drop, gamma=cfg.drop_gamma)
 
-    fname = f"data/{wrun.id}.pt"
+    if cfg.fname is not None:
+        cpoint = torch.load(cfg.fname)
+        model.load_state_dict(cpoint["model"])
+        head.load_state_dict(cpoint["head"])
+        optimizer.load_state_dict(cpoint["optimizer"])
+
+    def save(fname):
+        torch.save(
+            {
+                "model": model.state_dict(),
+                "head": head.state_dict(),
+                "optimizer": optimizer.state_dict(),
+            },
+            fname,
+        )
+
     lr_warmup = 0 if cfg.lr_warmup else 500
     cudnn.benchmark = True
     for ep in trange(cfg.epoch, position=0):
@@ -65,13 +96,9 @@ if __name__ == "__main__":
                 loss /= sum(range(len(samples) - 1))
 
             if cfg.nce:
-                if cfg.norm:
-                    z = normalize(z, p=2, dim=1)
                 assert len(samples) == 2
                 x0, x1 = z[:h_len], z[h_len:]
-                logits = [x0 @ x1.t(), x0 @ x0.t(), x1 @ x1.t()]
-                logits = torch.cat(logits, dim=1) / cfg.tau
-                loss += cross_entropy(logits, target_nce)
+                loss += contrastive_loss(x0, x1, cfg.tau, cfg.norm)
 
             loss.backward()
             optimizer.step()
@@ -88,15 +115,12 @@ if __name__ == "__main__":
             wandb.log({"acc": acc, "acc_knn": acc_knn}, commit=False)
             model.train()
 
+        if (ep + 1) % 100 == 0:
+            save(f"data/{cfg.dataset}_{ep}.pt")
+
         wandb.log({"loss": np.mean(loss_ep), "ep": ep})
 
     if cfg.save_model:
-        torch.save(
-            {
-                "model": model.state_dict(),
-                "head": head.state_dict(),
-                "optimizer": optimizer.state_dict(),
-            },
-            fname,
-        )
+        fname = f"data/{wrun.id}.pt"
+        save(fname)
         wandb.save(fname)

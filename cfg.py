@@ -23,6 +23,7 @@ def get_cfg():
     parser.add_argument("--no_w_mse", dest="w_mse", action="store_false")
 
     parser.add_argument("--knn", type=int, default=5)
+    parser.add_argument("--fname", type=str)
     parser.add_argument("--save_model", action="store_true")
     parser.add_argument(
         "--lr_step", type=str, choices=["cos", "step", "none"], default="step"
