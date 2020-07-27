@@ -5,18 +5,18 @@ from datasets import DS_LIST
 
 def get_cfg():
     parser = argparse.ArgumentParser(description="")
-    parser.add_argument("--cj0", type=float, default=0.6)
-    parser.add_argument("--cj1", type=float, default=0.6)
-    parser.add_argument("--cj2", type=float, default=0.6)
-    parser.add_argument("--cj3", type=float, default=0.2)
-    parser.add_argument("--cj_p", type=float, default=0.5)
-    parser.add_argument("--gs_p", type=float, default=0.1)
+    parser.add_argument("--cj0", type=float, default=0.4)
+    parser.add_argument("--cj1", type=float, default=0.4)
+    parser.add_argument("--cj2", type=float, default=0.4)
+    parser.add_argument("--cj3", type=float, default=0.1)
+    parser.add_argument("--cj_p", type=float, default=0.8)
+    parser.add_argument("--gs_p", type=float, default=0.2)
     parser.add_argument("--crop_s0", type=float, default=0.2)
     parser.add_argument("--crop_s1", type=float, default=1.0)
     parser.add_argument("--crop_r0", type=float, default=0.75)
     parser.add_argument("--crop_r1", type=float, default=(4 / 3))
     parser.add_argument("--hf_p", type=float, default=0.5)
-    parser.add_argument("--num_samples", type=int, default=5)
+    parser.add_argument("--num_samples", type=int, default=3)
 
     parser.add_argument("--no_lr_warmup", dest="lr_warmup", action="store_false")
     parser.add_argument("--no_add_bn", dest="add_bn", action="store_false")
@@ -40,7 +40,6 @@ def get_cfg():
     parser.add_argument(
         "--method", type=str, choices=["cholesky", "zca"], default="cholesky"
     )
-    parser.add_argument("--add_bn_last", action="store_true")
 
     parser.add_argument(
         "--w_iter",

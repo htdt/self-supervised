@@ -26,14 +26,14 @@ if __name__ == "__main__":
     params = list(model.parameters())
     head = get_head(out_size, cfg)
     params += list(head.parameters())
-    proj = nn.Sequential(
+    pred = nn.Sequential(
         nn.Linear(cfg.emb, cfg.head_size),
         nn.BatchNorm1d(cfg.head_size),
         nn.ReLU(),
         nn.Linear(cfg.head_size, cfg.emb),
     )
-    proj = proj.cuda().train()
-    params = list(proj.parameters())
+    pred = pred.cuda().train()
+    params = list(pred.parameters())
 
     model_t, _ = get_model(cfg.arch, cfg.dataset)
     head_t = get_head(out_size, cfg)
@@ -79,8 +79,8 @@ if __name__ == "__main__":
             x0 = samples[0].cuda(non_blocking=True)
             x1 = samples[1].cuda(non_blocking=True)
 
-            z0 = proj(head(model(x0)))
-            z1 = proj(head(model(x1)))
+            z0 = pred(head(model(x0)))
+            z1 = pred(head(model(x1)))
             with torch.no_grad():
                 z0t = head_t(model_t(x0))
                 z1t = head_t(model_t(x1))
@@ -90,7 +90,7 @@ if __name__ == "__main__":
             optimizer.step()
             loss_ep.append(loss.item())
 
-            update_target(0.99)
+            update_target(0.995)
 
             if cfg.lr_step == "cos" and lr_warmup >= 500:
                 scheduler.step(ep + n_iter / iters)

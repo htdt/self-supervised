@@ -1,7 +1,9 @@
+from functools import partial
 from tqdm import trange, tqdm
 import numpy as np
 import wandb
 import torch
+import torch.nn as nn
 import torch.optim as optim
 from torch.optim.lr_scheduler import MultiStepLR, CosineAnnealingWarmRestarts
 from torch.nn.functional import mse_loss, cross_entropy, normalize
@@ -12,6 +14,7 @@ from cfg import get_cfg
 from eval_sgd import eval_sgd
 from eval_knn import eval_knn
 from datasets import get_ds
+from whitening.cholesky import Whitening2d
 
 
 def contrastive_loss(x0, x1, tau, norm=True):
@@ -32,6 +35,24 @@ def contrastive_loss(x0, x1, tau, norm=True):
     ) / 2
 
 
+def w_mse_loss(x0, x1, whitening, w_iter, w_slice):
+    bs = len(x0)
+    x = torch.cat([x0, x1])
+
+    if w_iter == 1:
+        z = whitening(x)
+        return mse_loss(z[:bs], z[bs:])
+
+    loss = 0
+    for _ in range(w_iter):
+        z = torch.empty_like(x)
+        perm = torch.randperm(len(x)).view(w_slice, -1)
+        for idx in perm:
+            z[idx] = whitening(x[idx])
+        loss += mse_loss(z[:bs], z[bs:])
+    return loss / w_iter
+
+
 if __name__ == "__main__":
     cfg = get_cfg()
     wrun = wandb.init(project="white_ss", config=cfg)
@@ -39,8 +60,19 @@ if __name__ == "__main__":
     ds = get_ds(cfg.dataset)(cfg.bs, cfg)
     model, out_size = get_model(cfg.arch, cfg.dataset)
     params = list(model.parameters())
-    head = get_head(out_size, cfg)
-    params += list(head.parameters())
+
+    if cfg.w_mse:
+        w_mse_loss_p = partial(
+            w_mse_loss,
+            whitening=Whitening2d(cfg.emb, eps=cfg.w_eps, track_running_stats=False),
+            w_iter=cfg.w_iter,
+            w_slice=cfg.w_slice,
+        )
+        head_mse = get_head(out_size, cfg)
+        params += list(head_mse.parameters())
+    if cfg.nce:
+        head_nce = get_head(out_size, cfg, bn_last=True)
+        params += list(head_nce.parameters())
 
     optimizer = optim.Adam(
         params, lr=cfg.lr, betas=(cfg.adam_b0, 0.999), weight_decay=cfg.adam_l2
@@ -55,14 +87,18 @@ if __name__ == "__main__":
     if cfg.fname is not None:
         cpoint = torch.load(cfg.fname)
         model.load_state_dict(cpoint["model"])
-        head.load_state_dict(cpoint["head"])
         optimizer.load_state_dict(cpoint["optimizer"])
+        if cfg.w_mse:
+            head_mse.load_state_dict(cpoint["head_mse"])
+        if cfg.nce:
+            head_nce.load_state_dict(cpoint["head_nce"])
 
     def save(fname):
         torch.save(
             {
                 "model": model.state_dict(),
-                "head": head.state_dict(),
+                "head_mse": head_mse.state_dict() if cfg.w_mse else None,
+                "head_nce": head_nce.state_dict() if cfg.nce else None,
                 "optimizer": optimizer.state_dict(),
             },
             fname,
@@ -85,21 +121,24 @@ if __name__ == "__main__":
             h = [model(x.cuda(non_blocking=True)) for x in samples]
             h_len = len(h[0])
             h = torch.cat(h)
-            z = head(h)
-
-            if cfg.w_mse:
-                for i in range(len(samples) - 1):
-                    for j in range(i + 1, len(samples)):
-                        x0 = z[i * h_len : (i + 1) * h_len]
-                        x1 = z[j * h_len : (j + 1) * h_len]
-                        loss += mse_loss(x0, x1)
-                loss /= sum(range(len(samples) - 1))
 
             if cfg.nce:
-                assert len(samples) == 2
-                x0, x1 = z[:h_len], z[h_len:]
-                loss += contrastive_loss(x0, x1, cfg.tau, cfg.norm)
+                z_full = head_nce(h)
+                for i in range(len(samples) - 1):
+                    for j in range(i + 1, len(samples)):
+                        x0 = z_full[i * h_len : (i + 1) * h_len]
+                        x1 = z_full[j * h_len : (j + 1) * h_len]
+                        loss += contrastive_loss(x0, x1, tau=cfg.tau, norm=cfg.norm)
 
+            if cfg.w_mse:
+                z_full = head_mse(h)
+                for i in range(len(samples) - 1):
+                    for j in range(i + 1, len(samples)):
+                        x0 = z_full[i * h_len : (i + 1) * h_len]
+                        x1 = z_full[j * h_len : (j + 1) * h_len]
+                        loss += w_mse_loss_p(x0, x1)
+
+            loss /= sum(range(len(samples)))
             loss.backward()
             optimizer.step()
             loss_ep.append(loss.item())
