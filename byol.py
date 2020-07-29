@@ -4,7 +4,7 @@ import wandb
 import torch
 import torch.optim as optim
 from torch.optim.lr_scheduler import MultiStepLR, CosineAnnealingWarmRestarts
-from torch.nn.functional import mse_loss, cross_entropy, normalize
+from torch.nn.functional import normalize
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
 
@@ -17,7 +17,6 @@ from datasets import get_ds
 
 if __name__ == "__main__":
     cfg = get_cfg()
-    cfg.num_samples = 2
     cfg.byol = True
     wrun = wandb.init(project="white_ss", config=cfg)
 
@@ -33,12 +32,10 @@ if __name__ == "__main__":
         nn.Linear(cfg.head_size, cfg.emb),
     )
     pred = pred.cuda().train()
-    params = list(pred.parameters())
+    params += list(pred.parameters())
 
     model_t, _ = get_model(cfg.arch, cfg.dataset)
     head_t = get_head(out_size, cfg)
-    model_t.eval()
-    head_t.eval()
 
     optimizer = optim.Adam(
         params, lr=cfg.lr, betas=(cfg.adam_b0, 0.999), weight_decay=cfg.adam_l2
@@ -61,8 +58,9 @@ if __name__ == "__main__":
         y = normalize(y, dim=-1, p=2)
         return 2 - 2 * (x * y).sum(dim=-1)
 
-    # update_target(0)
+    update_target(0)
 
+    bs = cfg.bs
     lr_warmup = 0 if cfg.lr_warmup else 500
     cudnn.benchmark = True
     for ep in trange(cfg.epoch, position=0):
@@ -76,21 +74,21 @@ if __name__ == "__main__":
                 lr_warmup += 1
 
             optimizer.zero_grad()
-            x0 = samples[0].cuda(non_blocking=True)
-            x1 = samples[1].cuda(non_blocking=True)
-
-            z0 = pred(head(model(x0)))
-            z1 = pred(head(model(x1)))
+            z = [pred(head(model(x))) for x in samples]
             with torch.no_grad():
-                z0t = head_t(model_t(x0))
-                z1t = head_t(model_t(x1))
+                zt = [head_t(model_t(x)) for x in samples]
 
-            loss = (loss_fn(z0, z1t) + loss_fn(z1, z0t)).mean()
+            loss = 0
+            for i in range(len(samples) - 1):
+                for j in range(i + 1, len(samples)):
+                    loss += (loss_fn(z[i], zt[j]) + loss_fn(z[j], zt[i])).mean()
+
+            loss /= sum(range(len(samples)))
             loss.backward()
             optimizer.step()
             loss_ep.append(loss.item())
 
-            update_target(0.995)
+            update_target(cfg.byol_tau)
 
             if cfg.lr_step == "cos" and lr_warmup >= 500:
                 scheduler.step(ep + n_iter / iters)

@@ -1,12 +1,10 @@
-from functools import partial
 from tqdm import trange, tqdm
 import numpy as np
 import wandb
 import torch
-import torch.nn as nn
 import torch.optim as optim
 from torch.optim.lr_scheduler import MultiStepLR, CosineAnnealingWarmRestarts
-from torch.nn.functional import mse_loss, cross_entropy, normalize
+import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 
 from model import get_model, get_head
@@ -23,33 +21,34 @@ def contrastive_loss(x0, x1, tau, norm=True):
     target = torch.arange(bsize).cuda()
     eye_mask = torch.eye(bsize).cuda() * 1e9
     if norm:
-        x0 = normalize(x0, p=2, dim=1)
-        x1 = normalize(x1, p=2, dim=1)
+        x0 = F.normalize(x0, p=2, dim=1)
+        x1 = F.normalize(x1, p=2, dim=1)
     logits00 = x0 @ x0.t() / tau - eye_mask
     logits11 = x1 @ x1.t() / tau - eye_mask
     logits01 = x0 @ x1.t() / tau
     logits10 = x1 @ x0.t() / tau
     return (
-        cross_entropy(torch.cat([logits01, logits00], dim=1), target)
-        + cross_entropy(torch.cat([logits10, logits11], dim=1), target)
+        F.cross_entropy(torch.cat([logits01, logits00], dim=1), target)
+        + F.cross_entropy(torch.cat([logits10, logits11], dim=1), target)
     ) / 2
+
+
+def norm_mse_loss(x0, x1):
+    x0 = F.normalize(x0)
+    x1 = F.normalize(x1)
+    return 2 - 2 * (x0 * x1).sum(dim=-1).mean()
 
 
 def w_mse_loss(x0, x1, whitening, w_iter, w_slice):
     bs = len(x0)
     x = torch.cat([x0, x1])
-
-    if w_iter == 1:
-        z = whitening(x)
-        return mse_loss(z[:bs], z[bs:])
-
     loss = 0
     for _ in range(w_iter):
         z = torch.empty_like(x)
         perm = torch.randperm(len(x)).view(w_slice, -1)
         for idx in perm:
             z[idx] = whitening(x[idx])
-        loss += mse_loss(z[:bs], z[bs:])
+        loss += norm_mse_loss(z[:bs], z[bs:])
     return loss / w_iter
 
 
@@ -62,12 +61,7 @@ if __name__ == "__main__":
     params = list(model.parameters())
 
     if cfg.w_mse:
-        w_mse_loss_p = partial(
-            w_mse_loss,
-            whitening=Whitening2d(cfg.emb, eps=cfg.w_eps, track_running_stats=False),
-            w_iter=cfg.w_iter,
-            w_slice=cfg.w_slice,
-        )
+        whitening = Whitening2d(cfg.emb, eps=cfg.w_eps, track_running_stats=False)
         head_mse = get_head(out_size, cfg)
         params += list(head_mse.parameters())
     if cfg.nce:
@@ -104,6 +98,7 @@ if __name__ == "__main__":
             fname,
         )
 
+    bs = cfg.bs
     lr_warmup = 0 if cfg.lr_warmup else 500
     cudnn.benchmark = True
     for ep in trange(cfg.epoch, position=0):
@@ -119,24 +114,21 @@ if __name__ == "__main__":
             optimizer.zero_grad()
             loss = 0
             h = [model(x.cuda(non_blocking=True)) for x in samples]
-            h_len = len(h[0])
-            h = torch.cat(h)
 
             if cfg.nce:
                 z_full = head_nce(h)
                 for i in range(len(samples) - 1):
                     for j in range(i + 1, len(samples)):
-                        x0 = z_full[i * h_len : (i + 1) * h_len]
-                        x1 = z_full[j * h_len : (j + 1) * h_len]
+                        x0 = z_full[i * bs : (i + 1) * bs]
+                        x1 = z_full[j * bs : (j + 1) * bs]
                         loss += contrastive_loss(x0, x1, tau=cfg.tau, norm=cfg.norm)
 
             if cfg.w_mse:
-                z_full = head_mse(h)
+                h = head_mse(torch.cat(h))
+                h = [whitening(h[i * bs : (i + 1) * bs]) for i in range(len(samples))]
                 for i in range(len(samples) - 1):
                     for j in range(i + 1, len(samples)):
-                        x0 = z_full[i * h_len : (i + 1) * h_len]
-                        x1 = z_full[j * h_len : (j + 1) * h_len]
-                        loss += w_mse_loss_p(x0, x1)
+                        loss += norm_mse_loss(h[i], h[j])
 
             loss /= sum(range(len(samples)))
             loss.backward()
