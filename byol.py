@@ -1,3 +1,4 @@
+import math
 from tqdm import trange, tqdm
 import numpy as np
 import wandb
@@ -56,7 +57,7 @@ if __name__ == "__main__":
     def loss_fn(x, y):
         x = normalize(x, dim=-1, p=2)
         y = normalize(y, dim=-1, p=2)
-        return 2 - 2 * (x * y).sum(dim=-1)
+        return 2 - 2 * (x * y).sum(dim=-1).mean()
 
     update_target(0)
 
@@ -81,14 +82,15 @@ if __name__ == "__main__":
             loss = 0
             for i in range(len(samples) - 1):
                 for j in range(i + 1, len(samples)):
-                    loss += (loss_fn(z[i], zt[j]) + loss_fn(z[j], zt[i])).mean()
+                    loss += loss_fn(z[i], zt[j]) + loss_fn(z[j], zt[i])
 
             loss /= sum(range(len(samples)))
             loss.backward()
             optimizer.step()
             loss_ep.append(loss.item())
 
-            update_target(cfg.byol_tau)
+            tau = 1 - (1 - cfg.byol_tau) * (math.cos(math.pi * ep / cfg.epoch) + 1) / 2
+            update_target(tau)
 
             if cfg.lr_step == "cos" and lr_warmup >= 500:
                 scheduler.step(ep + n_iter / iters)

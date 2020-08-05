@@ -73,7 +73,10 @@ if __name__ == "__main__":
     )
     if cfg.lr_step == "cos":
         scheduler = CosineAnnealingWarmRestarts(
-            optimizer, T_0=cfg.T0, T_mult=cfg.Tmult, eta_min=cfg.eta_min
+            optimizer,
+            T_0=cfg.epoch if cfg.T0 is None else cfg.T0,
+            T_mult=cfg.Tmult,
+            eta_min=cfg.eta_min,
         )
     elif cfg.lr_step == "step":
         scheduler = MultiStepLR(optimizer, milestones=cfg.drop, gamma=cfg.drop_gamma)
@@ -116,19 +119,26 @@ if __name__ == "__main__":
             h = [model(x.cuda(non_blocking=True)) for x in samples]
 
             if cfg.nce:
-                z_full = head_nce(h)
+                h = head_nce(torch.cat(h))
                 for i in range(len(samples) - 1):
                     for j in range(i + 1, len(samples)):
-                        x0 = z_full[i * bs : (i + 1) * bs]
-                        x1 = z_full[j * bs : (j + 1) * bs]
+                        x0 = h[i * bs : (i + 1) * bs]
+                        x1 = h[j * bs : (j + 1) * bs]
                         loss += contrastive_loss(x0, x1, tau=cfg.tau, norm=cfg.norm)
 
             if cfg.w_mse:
                 h = head_mse(torch.cat(h))
-                h = [whitening(h[i * bs : (i + 1) * bs]) for i in range(len(samples))]
+                w_size = cfg.bs if cfg.w_size is None else cfg.w_size
+                assert len(h) % w_size == 0
+                w_step = len(h) // w_size
+                for i in range(w_step):
+                    s = slice(i * w_size, (i + 1) * w_size)
+                    h[s] = whitening(h[s])
                 for i in range(len(samples) - 1):
                     for j in range(i + 1, len(samples)):
-                        loss += norm_mse_loss(h[i], h[j])
+                        x0 = h[i * bs : (i + 1) * bs]
+                        x1 = h[j * bs : (j + 1) * bs]
+                        loss += norm_mse_loss(x0, x1)
 
             loss /= sum(range(len(samples)))
             loss.backward()

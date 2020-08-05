@@ -5,7 +5,7 @@ from datasets import DS_LIST
 
 def get_cfg():
     parser = argparse.ArgumentParser(description="")
-    parser.add_argument("--byol_tau", type=float, default=0.99)
+    parser.add_argument("--byol_tau", type=float, default=0.996)
     parser.add_argument("--cj0", type=float, default=0.4)
     parser.add_argument("--cj1", type=float, default=0.4)
     parser.add_argument("--cj2", type=float, default=0.4)
@@ -30,10 +30,10 @@ def get_cfg():
         "--lr_step", type=str, choices=["cos", "step", "none"], default="step"
     )
     parser.add_argument("--lr", type=float, default=5e-4, help="learning rate")
-    parser.add_argument("--eta_min", type=float, default=5e-5)
-    parser.add_argument("--adam_l2", type=float, default=5e-7)
+    parser.add_argument("--eta_min", type=float, default=0)
+    parser.add_argument("--adam_l2", type=float, default=1e-6)
     parser.add_argument("--adam_b0", type=float, default=0.9)
-    parser.add_argument("--T0", type=int, default=20)
+    parser.add_argument("--T0", type=int)
     parser.add_argument("--Tmult", type=int, default=1)
     parser.add_argument("--w_eps", type=float, default=0)
     parser.add_argument("--head_layers", type=int, default=2)
@@ -42,6 +42,7 @@ def get_cfg():
         "--method", type=str, choices=["cholesky", "zca"], default="cholesky"
     )
 
+    parser.add_argument("--w_size", type=int)
     parser.add_argument(
         "--w_iter",
         type=int,
