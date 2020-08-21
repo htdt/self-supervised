@@ -49,23 +49,20 @@ def get_cfg():
         default=1,
         help="iterations for whitening matrix estimation",
     )
-    parser.add_argument(
-        "--w_slice",
-        type=int,
-        default=1,
-        help="number of batch slices for whitening matrix estimation",
-    )
 
     parser.add_argument("--nce", action="store_true", help="use InfoNCE loss")
     parser.add_argument(
-        "--no_norm",
-        dest="norm",
-        action="store_false",
-        help="don't normalize InfoNCE latents",
+        "--no_norm", dest="norm", action="store_false", help="don't normalize latents",
     )
     parser.add_argument("--tau", type=float, default=0.5, help="InfoNCE temperature")
 
     parser.add_argument("--epoch", type=int, default=200, help="total epoch number")
+    parser.add_argument(
+        "--eval_every_drop",
+        type=int,
+        default=5,
+        help="how often to evaluate after drop",
+    )
     parser.add_argument(
         "--eval_every", type=int, default=20, help="how often to evaluate"
     )

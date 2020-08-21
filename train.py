@@ -39,19 +39,6 @@ def norm_mse_loss(x0, x1):
     return 2 - 2 * (x0 * x1).sum(dim=-1).mean()
 
 
-def w_mse_loss(x0, x1, whitening, w_iter, w_slice):
-    bs = len(x0)
-    x = torch.cat([x0, x1])
-    loss = 0
-    for _ in range(w_iter):
-        z = torch.empty_like(x)
-        perm = torch.randperm(len(x)).view(w_slice, -1)
-        for idx in perm:
-            z[idx] = whitening(x[idx])
-        loss += norm_mse_loss(z[:bs], z[bs:])
-    return loss / w_iter
-
-
 if __name__ == "__main__":
     cfg = get_cfg()
     wrun = wandb.init(project="white_ss", config=cfg)
@@ -101,7 +88,10 @@ if __name__ == "__main__":
             fname,
         )
 
+    w_size = cfg.bs if cfg.w_size is None else cfg.w_size
+    loss_f = norm_mse_loss if cfg.norm else F.mse_loss
     bs = cfg.bs
+    eval_every = cfg.eval_every
     lr_warmup = 0 if cfg.lr_warmup else 500
     cudnn.benchmark = True
     for ep in trange(cfg.epoch, position=0):
@@ -128,17 +118,18 @@ if __name__ == "__main__":
 
             if cfg.w_mse:
                 h = head_mse(torch.cat(h))
-                w_size = cfg.bs if cfg.w_size is None else cfg.w_size
-                assert len(h) % w_size == 0
-                w_step = len(h) // w_size
-                for i in range(w_step):
-                    s = slice(i * w_size, (i + 1) * w_size)
-                    h[s] = whitening(h[s])
-                for i in range(len(samples) - 1):
-                    for j in range(i + 1, len(samples)):
-                        x0 = h[i * bs : (i + 1) * bs]
-                        x1 = h[j * bs : (j + 1) * bs]
-                        loss += norm_mse_loss(x0, x1)
+                for _ in range(cfg.w_iter):
+                    z = torch.empty_like(h)
+                    perm = torch.randperm(bs).view(-1, w_size)
+                    for idx in perm:
+                        for i in range(len(samples)):
+                            z[idx + i * bs] = whitening(h[idx + i * bs])
+                    for i in range(len(samples) - 1):
+                        for j in range(i + 1, len(samples)):
+                            x0 = z[i * bs : (i + 1) * bs]
+                            x1 = z[j * bs : (j + 1) * bs]
+                            loss += loss_f(x0, x1)
+                loss /= cfg.w_iter
 
             loss /= sum(range(len(samples)))
             loss.backward()
@@ -150,7 +141,10 @@ if __name__ == "__main__":
         if cfg.lr_step == "step":
             scheduler.step()
 
-        if (ep + 1) % cfg.eval_every == 0:
+        if len(cfg.drop) and ep >= cfg.drop[0]:
+            eval_every = cfg.eval_every_drop
+
+        if (ep + 1) % eval_every == 0:
             acc_knn = eval_knn(model, out_size, ds.clf, ds.test, cfg.knn)
             acc = eval_sgd(model, out_size, ds.clf, ds.test, 500)
             wandb.log({"acc": acc, "acc_knn": acc_knn}, commit=False)
