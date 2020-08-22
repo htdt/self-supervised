@@ -5,7 +5,7 @@ from datasets import DS_LIST
 
 def get_cfg():
     parser = argparse.ArgumentParser(description="")
-    parser.add_argument("--byol_tau", type=float, default=0.996)
+    parser.add_argument("--byol_tau", type=float, default=0.99)
     parser.add_argument("--cj0", type=float, default=0.4)
     parser.add_argument("--cj1", type=float, default=0.4)
     parser.add_argument("--cj2", type=float, default=0.4)
@@ -17,7 +17,7 @@ def get_cfg():
     parser.add_argument("--crop_r0", type=float, default=0.75)
     parser.add_argument("--crop_r1", type=float, default=(4 / 3))
     parser.add_argument("--hf_p", type=float, default=0.5)
-    parser.add_argument("--num_samples", type=int, default=5)
+    parser.add_argument("--num_samples", type=int, default=4)
 
     parser.add_argument("--no_lr_warmup", dest="lr_warmup", action="store_false")
     parser.add_argument("--no_add_bn", dest="add_bn", action="store_false")
@@ -29,7 +29,7 @@ def get_cfg():
     parser.add_argument(
         "--lr_step", type=str, choices=["cos", "step", "none"], default="step"
     )
-    parser.add_argument("--lr", type=float, default=5e-4, help="learning rate")
+    parser.add_argument("--lr", type=float, default=1e-3, help="learning rate")
     parser.add_argument("--eta_min", type=float, default=0)
     parser.add_argument("--adam_l2", type=float, default=1e-6)
     parser.add_argument("--adam_b0", type=float, default=0.9)
@@ -42,7 +42,7 @@ def get_cfg():
         "--method", type=str, choices=["cholesky", "zca"], default="cholesky"
     )
 
-    parser.add_argument("--w_size", type=int)
+    parser.add_argument("--w_size", type=int, default=128)
     parser.add_argument(
         "--w_iter",
         type=int,
@@ -67,13 +67,13 @@ def get_cfg():
         "--eval_every", type=int, default=20, help="how often to evaluate"
     )
     parser.add_argument("--emb", type=int, default=64, help="embedding size")
-    parser.add_argument("--bs", type=int, default=150, help="batch size")
+    parser.add_argument("--bs", type=int, default=256, help="batch size")
     parser.add_argument(
         "--drop",
         type=int,
         nargs="*",
-        default=[],
-        help="milestones for learning rate decay",
+        default=[50, 25],
+        help="milestones for learning rate decay (0 = last epoch)",
     )
     parser.add_argument(
         "--drop_gamma",

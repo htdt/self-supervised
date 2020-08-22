@@ -66,7 +66,8 @@ if __name__ == "__main__":
             eta_min=cfg.eta_min,
         )
     elif cfg.lr_step == "step":
-        scheduler = MultiStepLR(optimizer, milestones=cfg.drop, gamma=cfg.drop_gamma)
+        m = [cfg.epoch - a for a in cfg.drop]
+        scheduler = MultiStepLR(optimizer, milestones=m, gamma=cfg.drop_gamma)
 
     if cfg.fname is not None:
         cpoint = torch.load(cfg.fname)
@@ -141,7 +142,7 @@ if __name__ == "__main__":
         if cfg.lr_step == "step":
             scheduler.step()
 
-        if len(cfg.drop) and ep >= cfg.drop[0]:
+        if len(cfg.drop) and ep == (cfg.epoch - cfg.drop[0]):
             eval_every = cfg.eval_every_drop
 
         if (ep + 1) % eval_every == 0:

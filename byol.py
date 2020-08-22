@@ -46,7 +46,8 @@ if __name__ == "__main__":
             optimizer, T_0=cfg.T0, T_mult=cfg.Tmult, eta_min=cfg.eta_min
         )
     elif cfg.lr_step == "step":
-        scheduler = MultiStepLR(optimizer, milestones=cfg.drop, gamma=cfg.drop_gamma)
+        m = [cfg.epoch - a for a in cfg.drop]
+        scheduler = MultiStepLR(optimizer, milestones=m, gamma=cfg.drop_gamma)
 
     def update_target(tau):
         for t, s in zip(model_t.parameters(), model.parameters()):
@@ -62,6 +63,7 @@ if __name__ == "__main__":
     update_target(0)
 
     bs = cfg.bs
+    eval_every = cfg.eval_every
     lr_warmup = 0 if cfg.lr_warmup else 500
     cudnn.benchmark = True
     for ep in trange(cfg.epoch, position=0):
@@ -98,7 +100,10 @@ if __name__ == "__main__":
         if cfg.lr_step == "step":
             scheduler.step()
 
-        if (ep + 1) % cfg.eval_every == 0:
+        if len(cfg.drop) and ep == (cfg.epoch - cfg.drop[0]):
+            eval_every = cfg.eval_every_drop
+
+        if (ep + 1) % eval_every == 0:
             acc_knn = eval_knn(model, out_size, ds.clf, ds.test, cfg.knn)
             acc = eval_sgd(model, out_size, ds.clf, ds.test, 500)
             wandb.log({"acc": acc, "acc_knn": acc_knn}, commit=False)
