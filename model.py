@@ -1,11 +1,9 @@
 import torch.nn as nn
 from torchvision import models
 from dim_encoder import DIM32, DIM64
-# from whitening.ZCANorm import ZCANormSVDPI
-# from whitening.cholesky import Whitening2d
 
 
-def get_head(out_size, cfg, bn_last=False):
+def get_head(out_size, cfg):
     x = []
     in_size = out_size
     for _ in range(cfg.head_layers - 1):
@@ -15,18 +13,7 @@ def get_head(out_size, cfg, bn_last=False):
         x.append(nn.ReLU())
         in_size = cfg.head_size
     x.append(nn.Linear(in_size, cfg.emb))
-
-    if bn_last:
-        x.append(nn.BatchNorm1d(cfg.emb))
-
-    # if whitening:
-    #     if cfg.method == "cholesky":
-    #         x.append(Whitening2d(cfg.emb, eps=cfg.w_eps, track_running_stats=False))
-    #     elif cfg.method == "zca":
-    #         x.append(ZCANormSVDPI(cfg.emb, eps=cfg.w_eps))
-    #     else:
-    #         raise Exception("unknown method")
-    return nn.Sequential(*x).cuda().train()
+    return nn.Sequential(*x)
 
 
 def get_model(arch, dataset):
@@ -45,4 +32,4 @@ def get_model(arch, dataset):
         out_size = model.fc.in_features
         model.fc = nn.Identity()
 
-    return nn.DataParallel(model).cuda().train(), out_size
+    return nn.DataParallel(model), out_size

@@ -4,62 +4,16 @@ import wandb
 import torch
 import torch.optim as optim
 from torch.optim.lr_scheduler import MultiStepLR, CosineAnnealingWarmRestarts
-import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 
-from model import get_model, get_head
 from cfg import get_cfg
-from eval_sgd import eval_sgd
-from eval_knn import eval_knn
 from datasets import get_ds
-from whitening.cholesky import Whitening2d
+from methods import get_method
 
 
-def contrastive_loss(x0, x1, tau, norm=True):
-    # https://github.com/google-research/simclr/blob/master/objective.py
-    bsize = x0.shape[0]
-    target = torch.arange(bsize).cuda()
-    eye_mask = torch.eye(bsize).cuda() * 1e9
-    if norm:
-        x0 = F.normalize(x0, p=2, dim=1)
-        x1 = F.normalize(x1, p=2, dim=1)
-    logits00 = x0 @ x0.t() / tau - eye_mask
-    logits11 = x1 @ x1.t() / tau - eye_mask
-    logits01 = x0 @ x1.t() / tau
-    logits10 = x1 @ x0.t() / tau
-    return (
-        F.cross_entropy(torch.cat([logits01, logits00], dim=1), target)
-        + F.cross_entropy(torch.cat([logits10, logits11], dim=1), target)
-    ) / 2
-
-
-def norm_mse_loss(x0, x1):
-    x0 = F.normalize(x0)
-    x1 = F.normalize(x1)
-    return 2 - 2 * (x0 * x1).sum(dim=-1).mean()
-
-
-if __name__ == "__main__":
-    cfg = get_cfg()
-    wrun = wandb.init(project="white_ss", config=cfg)
-
-    ds = get_ds(cfg.dataset)(cfg.bs, cfg)
-    model, out_size = get_model(cfg.arch, cfg.dataset)
-    params = list(model.parameters())
-
-    if cfg.w_mse:
-        whitening = Whitening2d(cfg.emb, eps=cfg.w_eps, track_running_stats=False)
-        head_mse = get_head(out_size, cfg)
-        params += list(head_mse.parameters())
-    if cfg.nce:
-        head_nce = get_head(out_size, cfg, bn_last=True)
-        params += list(head_nce.parameters())
-
-    optimizer = optim.Adam(
-        params, lr=cfg.lr, betas=(cfg.adam_b0, 0.999), weight_decay=cfg.adam_l2
-    )
+def get_scheduler(optimizer, cfg):
     if cfg.lr_step == "cos":
-        scheduler = CosineAnnealingWarmRestarts(
+        return CosineAnnealingWarmRestarts(
             optimizer,
             T_0=cfg.epoch if cfg.T0 is None else cfg.T0,
             T_mult=cfg.Tmult,
@@ -67,34 +21,28 @@ if __name__ == "__main__":
         )
     elif cfg.lr_step == "step":
         m = [cfg.epoch - a for a in cfg.drop]
-        scheduler = MultiStepLR(optimizer, milestones=m, gamma=cfg.drop_gamma)
+        return MultiStepLR(optimizer, milestones=m, gamma=cfg.drop_gamma)
+    else:
+        return None
 
+
+if __name__ == "__main__":
+    cfg = get_cfg()
+    wandb.init(project="white_ss", config=cfg)
+
+    ds = get_ds(cfg.dataset)(cfg.bs, cfg)
+    model = get_method(cfg.method)(cfg)
+    model.cuda().train()
     if cfg.fname is not None:
-        cpoint = torch.load(cfg.fname)
-        model.load_state_dict(cpoint["model"])
-        optimizer.load_state_dict(cpoint["optimizer"])
-        if cfg.w_mse:
-            head_mse.load_state_dict(cpoint["head_mse"])
-        if cfg.nce:
-            head_nce.load_state_dict(cpoint["head_nce"])
+        model.load_state_dict(torch.load(cfg.fname))
 
-    def save(fname):
-        torch.save(
-            {
-                "model": model.state_dict(),
-                "head_mse": head_mse.state_dict() if cfg.w_mse else None,
-                "head_nce": head_nce.state_dict() if cfg.nce else None,
-                "optimizer": optimizer.state_dict(),
-            },
-            fname,
-        )
+    optimizer = optim.Adam(model.parameters(), lr=cfg.lr, weight_decay=cfg.adam_l2)
+    scheduler = get_scheduler(optimizer, cfg)
 
-    w_size = cfg.bs if cfg.w_size is None else cfg.w_size
-    loss_f = norm_mse_loss if cfg.norm else F.mse_loss
-    bs = cfg.bs
     eval_every = cfg.eval_every
     lr_warmup = 0 if cfg.lr_warmup else 500
     cudnn.benchmark = True
+
     for ep in trange(cfg.epoch, position=0):
         loss_ep = []
         iters = len(ds.train)
@@ -106,36 +54,11 @@ if __name__ == "__main__":
                 lr_warmup += 1
 
             optimizer.zero_grad()
-            loss = 0
-            h = [model(x.cuda(non_blocking=True)) for x in samples]
-
-            if cfg.nce:
-                h = head_nce(torch.cat(h))
-                for i in range(len(samples) - 1):
-                    for j in range(i + 1, len(samples)):
-                        x0 = h[i * bs : (i + 1) * bs]
-                        x1 = h[j * bs : (j + 1) * bs]
-                        loss += contrastive_loss(x0, x1, tau=cfg.tau, norm=cfg.norm)
-
-            if cfg.w_mse:
-                h = head_mse(torch.cat(h))
-                for _ in range(cfg.w_iter):
-                    z = torch.empty_like(h)
-                    perm = torch.randperm(bs).view(-1, w_size)
-                    for idx in perm:
-                        for i in range(len(samples)):
-                            z[idx + i * bs] = whitening(h[idx + i * bs])
-                    for i in range(len(samples) - 1):
-                        for j in range(i + 1, len(samples)):
-                            x0 = z[i * bs : (i + 1) * bs]
-                            x1 = z[j * bs : (j + 1) * bs]
-                            loss += loss_f(x0, x1)
-                loss /= cfg.w_iter
-
-            loss /= sum(range(len(samples)))
+            loss = model(samples)
             loss.backward()
             optimizer.step()
             loss_ep.append(loss.item())
+            model.step(ep / cfg.epoch)
             if cfg.lr_step == "cos" and lr_warmup >= 500:
                 scheduler.step(ep + n_iter / iters)
 
@@ -146,17 +69,11 @@ if __name__ == "__main__":
             eval_every = cfg.eval_every_drop
 
         if (ep + 1) % eval_every == 0:
-            acc_knn = eval_knn(model, out_size, ds.clf, ds.test, cfg.knn)
-            acc = eval_sgd(model, out_size, ds.clf, ds.test, 500)
+            acc_knn, acc = model.get_acc(ds.clf, ds.test)
             wandb.log({"acc": acc, "acc_knn": acc_knn}, commit=False)
-            model.train()
 
         if (ep + 1) % 100 == 0:
-            save(f"data/{cfg.dataset}_{ep}.pt")
+            fname = f"data/{cfg.method}_{cfg.dataset}_{ep}.pt"
+            torch.save(model.state_dict(), fname)
 
         wandb.log({"loss": np.mean(loss_ep), "ep": ep})
-
-    if cfg.save_model:
-        fname = f"data/{wrun.id}.pt"
-        save(fname)
-        wandb.save(fname)
