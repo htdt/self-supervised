@@ -5,11 +5,17 @@ from eval.knn import eval_knn
 
 
 class BaseMethod(nn.Module):
+    """
+        Base class for self-supervised loss implementation.
+        It includes encoder and head for training, evaluation function.
+    """
+
     def __init__(self, cfg):
         super().__init__()
         self.model, self.out_size = get_model(cfg.arch, cfg.dataset)
         self.head = get_head(self.out_size, cfg)
         self.knn = cfg.knn
+        self.num_pairs = cfg.num_samples * (cfg.num_samples - 1) // 2
 
     def forward(self, samples):
         raise NotImplementedError

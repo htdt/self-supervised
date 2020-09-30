@@ -6,7 +6,10 @@ from .norm_mse import norm_mse_loss
 
 
 class WMSE(BaseMethod):
+    """ implements W-MSE loss """
+
     def __init__(self, cfg):
+        """ init whitening transform """
         super().__init__(cfg)
         self.whitening = Whitening2d(cfg.emb, eps=cfg.w_eps, track_running_stats=False)
         self.loss_f = norm_mse_loss if cfg.norm else F.mse_loss
@@ -29,5 +32,5 @@ class WMSE(BaseMethod):
                     x0 = z[i * bs : (i + 1) * bs]
                     x1 = z[j * bs : (j + 1) * bs]
                     loss += self.loss_f(x0, x1)
-        loss /= self.w_iter * sum(range(len(samples)))
+        loss /= self.w_iter * self.num_pairs
         return loss

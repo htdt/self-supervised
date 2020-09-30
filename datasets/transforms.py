@@ -2,6 +2,7 @@ import torchvision.transforms as T
 
 
 def aug_transform(crop, base_transform, cfg):
+    """ augmentation transform generated from config """
     return T.Compose(
         [
             T.RandomApply(
@@ -21,6 +22,7 @@ def aug_transform(crop, base_transform, cfg):
 
 
 class MultiSample:
+    """ generates n samples with augmentation """
     def __init__(self, transform, n=2):
         self.transform = transform
         self.num = n

@@ -13,6 +13,7 @@ def get_data(model, loader):
 
 
 def eval_lbfgs(model, loader_clf, loader_test):
+    """ linear classifier accuracy (lbfgs method) """
     model.eval()
     clf = LogisticRegression(
         random_state=1337, solver="lbfgs", max_iter=1000, n_jobs=-1

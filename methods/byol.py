@@ -9,7 +9,10 @@ from .norm_mse import norm_mse_loss
 
 
 class BYOL(BaseMethod):
+    """ implements BYOL loss https://arxiv.org/abs/2006.07733 """
+
     def __init__(self, cfg):
+        """ init additional target and predictor networks """
         super().__init__(cfg)
         self.pred = nn.Sequential(
             nn.Linear(cfg.emb, cfg.head_size),
@@ -26,6 +29,7 @@ class BYOL(BaseMethod):
         self.loss_f = norm_mse_loss if cfg.norm else F.mse_loss
 
     def update_target(self, tau):
+        """ copy parameters from main network to target """
         for t, s in zip(self.model_t.parameters(), self.model.parameters()):
             t.data.copy_(t.data * tau + s.data * (1.0 - tau))
         for t, s in zip(self.head_t.parameters(), self.head.parameters()):
@@ -40,9 +44,10 @@ class BYOL(BaseMethod):
         for i in range(len(samples) - 1):
             for j in range(i + 1, len(samples)):
                 loss += self.loss_f(z[i], zt[j]) + self.loss_f(z[j], zt[i])
-        loss /= sum(range(len(samples)))
+        loss /= self.num_pairs
         return loss
 
     def step(self, progress):
+        """ update target network with cosine increasing schedule """
         tau = 1 - (1 - self.byol_tau) * (math.cos(math.pi * progress) + 1) / 2
         self.update_target(tau)

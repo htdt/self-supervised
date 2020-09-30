@@ -1,24 +1,11 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-
-
-def get_data(model, loader, output_size, device):
-    xs = torch.empty(
-        len(loader), loader.batch_size, output_size, dtype=torch.float32, device=device
-    )
-    ys = torch.empty(len(loader), loader.batch_size, dtype=torch.long, device=device)
-    with torch.no_grad():
-        for i, (x, y) in enumerate(loader):
-            x = x.cuda()
-            xs[i] = model(x).to(device)
-            ys[i] = y.to(device)
-    xs = xs.view(-1, output_size)
-    ys = ys.view(-1)
-    return xs, ys
+from .get_data import get_data
 
 
 def eval_sgd(model, output_size, loader_clf, loader_test, epoch=300):
+    """ linear classifier accuracy (sgd) """
     model.eval()
     x_train, y_train = get_data(model, loader_clf, output_size, "cuda")
     x_test, y_test = get_data(model, loader_test, output_size, "cuda")

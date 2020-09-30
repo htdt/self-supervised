@@ -1,3 +1,4 @@
+from functools import partial
 import argparse
 from torchvision import models
 from datasets import DS_LIST
@@ -5,40 +6,82 @@ from methods import METHOD_LIST
 
 
 def get_cfg():
+    """ generates configuration from user input in console """
     parser = argparse.ArgumentParser(description="")
-    parser.add_argument("--method", type=str, choices=METHOD_LIST, default="w_mse")
-    parser.add_argument("--byol_tau", type=float, default=0.99)
-    parser.add_argument("--num_samples", type=int, default=4)
-
-    parser.add_argument("--cj0", type=float, default=0.4)
-    parser.add_argument("--cj1", type=float, default=0.4)
-    parser.add_argument("--cj2", type=float, default=0.4)
-    parser.add_argument("--cj3", type=float, default=0.1)
-    parser.add_argument("--cj_p", type=float, default=0.8)
-    parser.add_argument("--gs_p", type=float, default=0.1)
-    parser.add_argument("--crop_s0", type=float, default=0.2)
-    parser.add_argument("--crop_s1", type=float, default=1.0)
-    parser.add_argument("--crop_r0", type=float, default=0.75)
-    parser.add_argument("--crop_r1", type=float, default=(4 / 3))
-    parser.add_argument("--hf_p", type=float, default=0.5)
-
-    parser.add_argument("--no_lr_warmup", dest="lr_warmup", action="store_false")
-    parser.add_argument("--no_add_bn", dest="add_bn", action="store_false")
-    parser.add_argument("--knn", type=int, default=5)
-    parser.add_argument("--fname", type=str)
     parser.add_argument(
-        "--lr_step", type=str, choices=["cos", "step", "none"], default="step"
+        "--method", type=str, choices=METHOD_LIST, default="w_mse", help="loss type",
+    )
+    parser.add_argument(
+        "--wandb",
+        type=str,
+        default="self_supervised",
+        help="name of the project for logging at https://wandb.ai",
+    )
+    parser.add_argument(
+        "--byol_tau", type=float, default=0.99, help="starting tau for byol loss"
+    )
+    parser.add_argument(
+        "--num_samples",
+        type=int,
+        default=2,
+        help="number of samples (d) generated from each image",
+    )
+
+    addf = partial(parser.add_argument, type=float)
+    addf("--cj0", default=0.4, help="color jitter brightness")
+    addf("--cj1", default=0.4, help="color jitter contrast")
+    addf("--cj2", default=0.4, help="color jitter saturation")
+    addf("--cj3", default=0.1, help="color jitter hue")
+    addf("--cj_p", default=0.8, help="color jitter probability")
+    addf("--gs_p", default=0.1, help="grayscale probability")
+    addf("--crop_s0", default=0.2, help="crop size from")
+    addf("--crop_s1", default=1.0, help="crop size to")
+    addf("--crop_r0", default=0.75, help="crop ratio from")
+    addf("--crop_r1", default=(4 / 3), help="crop ratio to")
+    addf("--hf_p", default=0.5, help="horizontal flip probability")
+
+    parser.add_argument(
+        "--no_lr_warmup",
+        dest="lr_warmup",
+        action="store_false",
+        help="do not use learning rate warmup",
+    )
+    parser.add_argument(
+        "--no_add_bn", dest="add_bn", action="store_false", help="do not use BN to head"
+    )
+    parser.add_argument("--knn", type=int, default=5, help="k in k-nn classifier")
+    parser.add_argument("--fname", type=str, help="load model from file")
+    parser.add_argument(
+        "--lr_step",
+        type=str,
+        choices=["cos", "step", "none"],
+        default="step",
+        help="learning rate schedule type",
     )
     parser.add_argument("--lr", type=float, default=1e-3, help="learning rate")
-    parser.add_argument("--eta_min", type=float, default=0)
-    parser.add_argument("--adam_l2", type=float, default=1e-6)
-    parser.add_argument("--T0", type=int)
-    parser.add_argument("--Tmult", type=int, default=1)
-    parser.add_argument("--w_eps", type=float, default=0)
-    parser.add_argument("--head_layers", type=int, default=2)
-    parser.add_argument("--head_size", type=int, default=1024)
+    parser.add_argument(
+        "--eta_min", type=float, default=0, help="min learning rate for cos schedule"
+    )
+    parser.add_argument(
+        "--adam_l2", type=float, default=1e-6, help="weight decay (L2 penalty)"
+    )
+    parser.add_argument("--T0", type=int, help="period for cos schedule")
+    parser.add_argument(
+        "--Tmult", type=int, default=1, help="period factor for cos schedule"
+    )
+    parser.add_argument(
+        "--w_eps", type=float, default=0, help="eps for stability for whitening"
+    )
+    parser.add_argument(
+        "--head_layers", type=int, default=2, help="number of FC layers in head"
+    )
+    parser.add_argument(
+        "--head_size", type=int, default=1024, help="size of FC layers in head"
+    )
 
-    parser.add_argument("--w_size", type=int, default=128)
+    parser.add_argument(
+        "--w_size", type=int, default=128, help="size of sub-batch for W-MSE loss"
+    )
     parser.add_argument(
         "--w_iter",
         type=int,
@@ -49,20 +92,24 @@ def get_cfg():
     parser.add_argument(
         "--no_norm", dest="norm", action="store_false", help="don't normalize latents",
     )
-    parser.add_argument("--tau", type=float, default=0.5, help="InfoNCE temperature")
+    parser.add_argument(
+        "--tau", type=float, default=0.5, help="contrastive loss temperature"
+    )
 
     parser.add_argument("--epoch", type=int, default=200, help="total epoch number")
     parser.add_argument(
         "--eval_every_drop",
         type=int,
         default=5,
-        help="how often to evaluate after drop",
+        help="how often to evaluate after learning rate drop",
     )
     parser.add_argument(
         "--eval_every", type=int, default=20, help="how often to evaluate"
     )
     parser.add_argument("--emb", type=int, default=64, help="embedding size")
-    parser.add_argument("--bs", type=int, default=256, help="batch size")
+    parser.add_argument(
+        "--bs", type=int, default=512, help="number of original images in batch N",
+    )
     parser.add_argument(
         "--drop",
         type=int,
@@ -79,9 +126,9 @@ def get_cfg():
     parser.add_argument(
         "--arch",
         type=str,
-        choices=dir(models) + ["DIM32", "DIM64"],
+        choices=dir(models),
         default="resnet18",
-        help="encoder architecture",
+        help="encoder architecture (tested only on resnets)",
     )
     parser.add_argument("--dataset", type=str, choices=DS_LIST, default="cifar10")
     return parser.parse_args()

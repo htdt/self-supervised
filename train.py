@@ -28,7 +28,7 @@ def get_scheduler(optimizer, cfg):
 
 if __name__ == "__main__":
     cfg = get_cfg()
-    wandb.init(project="white_ss", config=cfg)
+    wandb.init(project=cfg.wandb, config=cfg)
 
     ds = get_ds(cfg.dataset)(cfg.bs, cfg)
     model = get_method(cfg.method)(cfg)

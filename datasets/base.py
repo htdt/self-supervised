@@ -4,6 +4,13 @@ from torch.utils.data import DataLoader
 
 
 class BaseDataset(metaclass=ABCMeta):
+    """
+        base class for datasets, it includes 3 types:
+            - for self-supervised training,
+            - for classifier training for evaluation,
+            - for testing
+    """
+
     def __init__(self, bs_train, aug_cfg, bs_clf=1000, bs_test=1000):
         self.bs_train = bs_train
         self.bs_clf = bs_clf

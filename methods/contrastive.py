@@ -23,8 +23,11 @@ def contrastive_loss(x0, x1, tau, norm):
     ) / 2
 
 
-class InfoNCE(BaseMethod):
+class Contrastive(BaseMethod):
+    """ implements contrastive loss https://arxiv.org/abs/2002.05709 """
+
     def __init__(self, cfg):
+        """ init additional BN used after head """
         super().__init__(cfg)
         self.bn_last = nn.BatchNorm1d(cfg.emb)
         self.loss_f = partial(contrastive_loss, tau=cfg.tau, norm=cfg.norm)
@@ -39,5 +42,5 @@ class InfoNCE(BaseMethod):
                 x0 = h[i * bs : (i + 1) * bs]
                 x1 = h[j * bs : (j + 1) * bs]
                 loss += self.loss_f(x0, x1)
-        loss /= sum(range(len(samples)))
+        loss /= self.num_pairs
         return loss
