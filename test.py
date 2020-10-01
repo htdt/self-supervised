@@ -1,6 +1,5 @@
 import argparse
 import torch
-from torchvision import models
 from model import get_model
 from datasets import get_ds, DS_LIST
 from eval.sgd import eval_sgd
@@ -10,7 +9,7 @@ from eval.lbfgs import eval_lbfgs
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="")
-    parser.add_argument("--arch", type=str, choices=dir(models), default="resnet18")
+    parser.add_argument("--arch", type=str, default="resnet18")
     parser.add_argument(
         "--clf", type=str, default="sgd", choices=["sgd", "knn", "lbfgs"]
     )
@@ -22,8 +21,7 @@ if __name__ == "__main__":
     if cfg.fname is None:
         print("evaluating random model")
     else:
-        checkpoint = torch.load(cfg.fname)
-        model.load_state_dict(checkpoint["model"])
+        model.load_state_dict(torch.load(cfg.fname))
 
     ds = get_ds(cfg.dataset)(None, cfg)
     if cfg.clf == "sgd":

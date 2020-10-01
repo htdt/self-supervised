@@ -10,6 +10,8 @@ And 4 datasets:
 - STL-10
 - Tiny ImageNet
 
+Checkpoints are stored in `data` each 100 epochs during training.
+
 ## Installation
 
 The implementation is based on PyTorch. Logging works on [wandb.ai](https://wandb.ai/). See `docker/Dockerfile`.

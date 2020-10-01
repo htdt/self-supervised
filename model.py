@@ -3,7 +3,7 @@ from torchvision import models
 
 
 def get_head(out_size, cfg):
-    """creates projection head g() from config"""
+    """ creates projection head g() from config """
     x = []
     in_size = out_size
     for _ in range(cfg.head_layers - 1):

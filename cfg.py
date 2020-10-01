@@ -47,7 +47,7 @@ def get_cfg():
         help="do not use learning rate warmup",
     )
     parser.add_argument(
-        "--no_add_bn", dest="add_bn", action="store_false", help="do not use BN to head"
+        "--no_add_bn", dest="add_bn", action="store_false", help="do not use BN in head"
     )
     parser.add_argument("--knn", type=int, default=5, help="k in k-nn classifier")
     parser.add_argument("--fname", type=str, help="load model from file")
@@ -60,14 +60,14 @@ def get_cfg():
     )
     parser.add_argument("--lr", type=float, default=1e-3, help="learning rate")
     parser.add_argument(
-        "--eta_min", type=float, default=0, help="min learning rate for cos schedule"
+        "--eta_min", type=float, default=0, help="min learning rate (for --lr_step cos)"
     )
     parser.add_argument(
         "--adam_l2", type=float, default=1e-6, help="weight decay (L2 penalty)"
     )
-    parser.add_argument("--T0", type=int, help="period for cos schedule")
+    parser.add_argument("--T0", type=int, help="period (for --lr_step cos)"
     parser.add_argument(
-        "--Tmult", type=int, default=1, help="period factor for cos schedule"
+        "--Tmult", type=int, default=1, help="period factor (for --lr_step cos)"
     )
     parser.add_argument(
         "--w_eps", type=float, default=0, help="eps for stability for whitening"
@@ -126,9 +126,9 @@ def get_cfg():
     parser.add_argument(
         "--arch",
         type=str,
-        choices=dir(models),
+        choices=[x for x in dir(models) if 'resn' in x],
         default="resnet18",
-        help="encoder architecture (tested only on resnets)",
+        help="encoder architecture",
     )
     parser.add_argument("--dataset", type=str, choices=DS_LIST, default="cifar10")
     return parser.parse_args()
