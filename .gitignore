@@ -1,6 +1,5 @@
 **/*.swp
 **/__pycache__
-data
 data/**
 !data/.gitkeep
 output/**
