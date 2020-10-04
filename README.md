@@ -1,6 +1,7 @@
 # Self-Supervised Representation Learning
 
-Official repository of the paper **Whitening for Self-Supervised Representation Learning**.
+Official repository of the paper **Whitening for Self-Supervised Representation Learning**  
+[arXiv:2007.06346](https://arxiv.org/abs/2007.06346)
 
 It includes 3 types of losses:
 - W-MSE [arxiv](https://arxiv.org/abs/2007.06346)
