@@ -29,7 +29,7 @@ python -m test --help
 ```
 
 To reproduce the results from [table 1](https://arxiv.org/abs/2007.06346):
-### W-MSE 4
+#### W-MSE 4
 ```
 python -m train --dataset cifar10 --epoch 1000 --lr 3e-3 --num_samples 4 --bs 256 --emb 64 --w_size 128
 python -m train --dataset cifar100 --epoch 1000 --lr 3e-3 --num_samples 4 --bs 256 --emb 64 --w_size 128
@@ -37,7 +37,7 @@ python -m train --dataset stl10 --epoch 2000 --lr 2e-3 --num_samples 4 --bs 256 
 python -m train --dataset tiny_in --epoch 1000 --lr 2e-3 --num_samples 4 --bs 256 --emb 128 --w_size 256
 ```
 
-### W-MSE 2
+#### W-MSE 2
 ```
 python -m train --dataset cifar10 --epoch 1000 --lr 3e-3 --emb 64 --w_size 128
 python -m train --dataset cifar100 --epoch 1000 --lr 3e-3 --emb 64 --w_size 128
@@ -45,7 +45,7 @@ python -m train --dataset stl10 --epoch 2000 --lr 2e-3 --emb 128 --w_size 256 --
 python -m train --dataset tiny_in --epoch 1000 --lr 2e-3 --emb 128 --w_size 256 --w_iter 4
 ```
 
-### Contrastive
+#### Contrastive
 ```
 python -m train --dataset cifar10 --epoch 1000 --lr 3e-3 --emb 64 --method contrastive
 python -m train --dataset cifar100 --epoch 1000 --lr 3e-3 --emb 64 --method contrastive
@@ -53,13 +53,15 @@ python -m train --dataset stl10 --epoch 2000 --lr 2e-3 --emb 128 --method contra
 python -m train --dataset tiny_in --epoch 1000 --lr 2e-3 --emb 128 --method contrastive
 ```
 
-### BYOL
+#### BYOL
 ```
 python -m train --dataset cifar10 --epoch 1000 --lr 3e-3 --emb 64 --method byol
 python -m train --dataset cifar100 --epoch 1000 --lr 3e-3 --emb 64 --method byol
 python -m train --dataset stl10 --epoch 2000 --lr 2e-3 --emb 128 --method byol
 python -m train --dataset tiny_in --epoch 1000 --lr 2e-3 --emb 128 --method byol
 ```
+
+Use `--no_norm` to disable normalization (for Euclidean distance).
 
 ## Citation
 ```
