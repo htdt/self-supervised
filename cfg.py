@@ -65,7 +65,7 @@ def get_cfg():
     parser.add_argument(
         "--adam_l2", type=float, default=1e-6, help="weight decay (L2 penalty)"
     )
-    parser.add_argument("--T0", type=int, help="period (for --lr_step cos)"
+    parser.add_argument("--T0", type=int, help="period (for --lr_step cos)")
     parser.add_argument(
         "--Tmult", type=int, default=1, help="period factor (for --lr_step cos)"
     )
