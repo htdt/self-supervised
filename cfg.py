@@ -1,6 +1,7 @@
 from functools import partial
 import argparse
 from torchvision import models
+import multiprocessing
 from datasets import DS_LIST
 from methods import METHOD_LIST
 
@@ -126,11 +127,15 @@ def get_cfg():
     parser.add_argument(
         "--arch",
         type=str,
-        choices=[x for x in dir(models) if 'resn' in x],
+        choices=[x for x in dir(models) if "resn" in x],
         default="resnet18",
         help="encoder architecture",
     )
     parser.add_argument("--dataset", type=str, choices=DS_LIST, default="cifar10")
-    parser.add_argument("--workers_train", type=int, default=8, help="dataset workers")
-    parser.add_argument("--workers_test", type=int, default=8, help="dataset workers")
+    parser.add_argument(
+        "--num_workers",
+        type=int,
+        default=multiprocessing.cpu_count(),
+        help="dataset workers number",
+    )
     return parser.parse_args()
