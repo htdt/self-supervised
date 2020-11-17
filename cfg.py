@@ -131,4 +131,6 @@ def get_cfg():
         help="encoder architecture",
     )
     parser.add_argument("--dataset", type=str, choices=DS_LIST, default="cifar10")
+    parser.add_argument("--workers_train", type=int, default=8, help="dataset workers")
+    parser.add_argument("--workers_test", type=int, default=8, help="dataset workers")
     return parser.parse_args()

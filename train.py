@@ -30,7 +30,9 @@ if __name__ == "__main__":
     cfg = get_cfg()
     wandb.init(project=cfg.wandb, config=cfg)
 
-    ds = get_ds(cfg.dataset)(cfg.bs, cfg)
+    ds = get_ds(cfg.dataset)(
+        cfg.bs, cfg, workers_train=cfg.workers_train, workers_test=cfg.workers_test
+    )
     model = get_method(cfg.method)(cfg)
     model.cuda().train()
     if cfg.fname is not None:

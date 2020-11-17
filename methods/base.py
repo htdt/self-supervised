@@ -2,6 +2,7 @@ import torch.nn as nn
 from model import get_model, get_head
 from eval.sgd import eval_sgd
 from eval.knn import eval_knn
+from eval.get_data import get_data
 
 
 class BaseMethod(nn.Module):
@@ -22,8 +23,12 @@ class BaseMethod(nn.Module):
 
     def get_acc(self, ds_clf, ds_test):
         self.eval()
-        acc_knn = eval_knn(self.model, self.out_size, ds_clf, ds_test, self.knn)
-        acc_linear = eval_sgd(self.model, self.out_size, ds_clf, ds_test, 500)
+        # torch.cuda.empty_cache()
+        x_train, y_train = get_data(self.model, ds_clf, self.out_size, "cuda")
+        x_test, y_test = get_data(self.model, ds_test, self.out_size, "cuda")
+        acc_knn = eval_knn(x_train, y_train, x_test, y_test, self.knn)
+        acc_linear = eval_sgd(x_train, y_train, x_test, y_test, 500)
+        del x_train, y_train, x_test, y_test
         self.train()
         return acc_knn, acc_linear
 
