@@ -70,7 +70,7 @@ if __name__ == "__main__":
 
         if (ep + 1) % eval_every == 0:
             acc_knn, acc = model.get_acc(ds.clf, ds.test)
-            wandb.log({"acc": acc, "acc_knn": acc_knn}, commit=False)
+            wandb.log({"acc": acc[1], "acc_5": acc[5], "acc_knn": acc_knn}, commit=False)
 
         if (ep + 1) % 100 == 0:
             fname = f"data/{cfg.method}_{cfg.dataset}_{ep}.pt"

@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 
-def eval_sgd(x_train, y_train, x_test, y_test, epoch=300):
+def eval_sgd(x_train, y_train, x_test, y_test, topk=[1, 5], epoch=500):
     """ linear classifier accuracy (sgd) """
     lr_start, lr_end = 1e-2, 1e-6
     gamma = (lr_end / lr_start) ** (1 / epoch)
@@ -27,6 +27,10 @@ def eval_sgd(x_train, y_train, x_test, y_test, epoch=300):
     clf.eval()
     with torch.no_grad():
         y_pred = clf(x_test)
-    acc = (y_pred.argmax(1) == y_test).float().mean().cpu().item()
+    pred_top = y_pred.topk(max(topk), 1, largest=True, sorted=True).indices
+    acc = {
+        t: (pred_top[:, :t] == y_test[..., None]).float().sum(1).mean().cpu().item()
+        for t in topk
+    }
     del clf
     return acc

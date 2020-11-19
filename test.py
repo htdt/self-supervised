@@ -1,7 +1,8 @@
-import argparse
 import torch
-from model import get_model
-from datasets import get_ds, DS_LIST
+from datasets import get_ds
+from cfg import get_cfg
+from methods import get_method
+
 from eval.sgd import eval_sgd
 from eval.knn import eval_knn
 from eval.lbfgs import eval_lbfgs
@@ -9,29 +10,28 @@ from eval.get_data import get_data
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="")
-    parser.add_argument("--arch", type=str, default="resnet18")
-    parser.add_argument(
-        "--clf", type=str, default="sgd", choices=["sgd", "knn", "lbfgs"]
-    )
-    parser.add_argument("--dataset", type=str, choices=DS_LIST, default="cifar10")
-    parser.add_argument("--fname", type=str, help="load model from file")
-    cfg = parser.parse_args()
+    cfg = get_cfg()
 
-    model, out_size = get_model(cfg.arch, cfg.dataset)
-    model.cuda().eval()
+    model_full = get_method(cfg.method)(cfg)
+    model_full.cuda().eval()
     if cfg.fname is None:
         print("evaluating random model")
     else:
-        model.load_state_dict(torch.load(cfg.fname))
+        model_full.load_state_dict(torch.load(cfg.fname))
 
-    ds = get_ds(cfg.dataset)(None, cfg)
+    ds = get_ds(cfg.dataset)(None, cfg, cfg.num_workers)
     device = "cpu" if cfg.clf == "lbfgs" else "cuda"
+    if cfg.eval_head:
+        model = lambda x: model_full.head(model_full.model(x))
+        out_size = cfg.emb
+    else:
+        model = model_full.model
+        out_size = model_full.out_size
     x_train, y_train = get_data(model, ds.clf, out_size, device)
     x_test, y_test = get_data(model, ds.test, out_size, device)
 
     if cfg.clf == "sgd":
-        acc = eval_sgd(x_train, y_train, x_test, y_test, 500)
+        acc = eval_sgd(x_train, y_train, x_test, y_test)
     if cfg.clf == "knn":
         acc = eval_knn(x_train, y_train, x_test, y_test)
     elif cfg.clf == "lbfgs":

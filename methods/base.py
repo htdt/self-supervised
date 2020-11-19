@@ -27,7 +27,7 @@ class BaseMethod(nn.Module):
         x_train, y_train = get_data(self.model, ds_clf, self.out_size, "cuda")
         x_test, y_test = get_data(self.model, ds_test, self.out_size, "cuda")
         acc_knn = eval_knn(x_train, y_train, x_test, y_test, self.knn)
-        acc_linear = eval_sgd(x_train, y_train, x_test, y_test, 500)
+        acc_linear = eval_sgd(x_train, y_train, x_test, y_test)
         del x_train, y_train, x_test, y_test
         self.train()
         return acc_knn, acc_linear

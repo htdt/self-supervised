@@ -138,4 +138,16 @@ def get_cfg():
         default=multiprocessing.cpu_count(),
         help="dataset workers number",
     )
+    parser.add_argument(
+        "--clf",
+        type=str,
+        default="sgd",
+        choices=["sgd", "knn", "lbfgs"],
+        help="test.py: classifier",
+    )
+    parser.add_argument(
+        "--eval_head",
+        action="store_true",
+        help="test.py: eval head output instead of model",
+    )
     return parser.parse_args()
