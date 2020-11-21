@@ -17,15 +17,23 @@ class BaseMethod(nn.Module):
         self.head = get_head(self.out_size, cfg)
         self.knn = cfg.knn
         self.num_pairs = cfg.num_samples * (cfg.num_samples - 1) // 2
+        self.eval_head = cfg.eval_head
+        self.emb_size = cfg.emb
 
     def forward(self, samples):
         raise NotImplementedError
 
     def get_acc(self, ds_clf, ds_test):
         self.eval()
+        if self.eval_head:
+            model = lambda x: self.head(self.model(x))
+            out_size = self.emb_size
+        else:
+            model, out_size = self.model, self.out_size
         # torch.cuda.empty_cache()
-        x_train, y_train = get_data(self.model, ds_clf, self.out_size, "cuda")
-        x_test, y_test = get_data(self.model, ds_test, self.out_size, "cuda")
+        x_train, y_train = get_data(model, ds_clf, out_size, "cuda")
+        x_test, y_test = get_data(model, ds_test, out_size, "cuda")
+
         acc_knn = eval_knn(x_train, y_train, x_test, y_test, self.knn)
         acc_linear = eval_sgd(x_train, y_train, x_test, y_test)
         del x_train, y_train, x_test, y_test

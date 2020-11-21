@@ -143,11 +143,10 @@ def get_cfg():
         type=str,
         default="sgd",
         choices=["sgd", "knn", "lbfgs"],
-        help="test.py: classifier",
+        help="classifier for test.py",
     )
     parser.add_argument(
-        "--eval_head",
-        action="store_true",
-        help="test.py: eval head output instead of model",
+        "--eval_head", action="store_true", help="eval head output instead of model",
     )
+    parser.add_argument("--imagenet_path", type=str, default="~/IN100/")
     return parser.parse_args()

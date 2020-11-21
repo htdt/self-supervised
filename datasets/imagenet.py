@@ -2,7 +2,7 @@ import random
 from torchvision.datasets import ImageFolder
 import torchvision.transforms as T
 from PIL import ImageFilter
-from .transforms import MultiSample
+from .transforms import MultiSample, aug_transform
 from .base import BaseDataset
 
 
@@ -21,28 +21,21 @@ def base_transform():
     )
 
 
-def aug_transform():
-    return T.Compose(
-        [
-            T.RandomApply([T.ColorJitter(0.8, 0.8, 0.8, 0.2)], p=0.8),
-            T.RandomGrayscale(p=0.2),
-            T.RandomResizedCrop(224, interpolation=3),
-            T.RandomHorizontalFlip(p=0.5),
-            T.RandomApply([RandomBlur(0.1, 2.0)], p=0.5),  # 1, 20
-            base_transform(),
-        ]
-    )
-
-
 class ImageNet(BaseDataset):
     def ds_train(self):
-        t = MultiSample(aug_transform(), n=self.aug_cfg.num_samples)
-        return ImageFolder(root="/imagenet/train", transform=t)
+        aug_with_blur = aug_transform(
+            224,
+            base_transform,
+            self.aug_cfg,
+            extra_t=[T.RandomApply([RandomBlur(0.1, 2.0)], p=0.5)],
+        )
+        t = MultiSample(aug_with_blur, n=self.aug_cfg.num_samples)
+        return ImageFolder(root=self.aug_cfg.imagenet_path + "train", transform=t)
 
     def ds_clf(self):
         t = base_transform()
-        return ImageFolder(root="/imagenet224/train", transform=t)
+        return ImageFolder(root=self.aug_cfg.imagenet_path + "clf", transform=t)
 
     def ds_test(self):
         t = base_transform()
-        return ImageFolder(root="/imagenet224/val", transform=t)
+        return ImageFolder(root=self.aug_cfg.imagenet_path + "test", transform=t)
