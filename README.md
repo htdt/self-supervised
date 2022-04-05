@@ -1,7 +1,8 @@
 # Self-Supervised Representation Learning
 
-Official repository of the paper **Whitening for Self-Supervised Representation Learning**  
-[arXiv:2007.06346](https://arxiv.org/abs/2007.06346)
+Official repository of the paper **Whitening for Self-Supervised Representation Learning** 
+
+ICML 2021 | [arXiv:2007.06346](https://arxiv.org/abs/2007.06346)
 
 It includes 3 types of losses:
 - W-MSE [arXiv](https://arxiv.org/abs/2007.06346)
@@ -76,10 +77,12 @@ Use `--no_norm` to disable normalization (for Euclidean distance).
 
 ## Citation
 ```
-@article{ermolov2020whitening,
-  title={Whitening for Self-Supervised Representation Learning}, 
-  author={Aleksandr Ermolov and Aliaksandr Siarohin and Enver Sangineto and Nicu Sebe},
-  journal={arXiv preprint arXiv:2007.06346},
-  year={2020}
+@inproceedings{ermolov2021whitening,
+  title={Whitening for self-supervised representation learning},
+  author={Ermolov, Aleksandr and Siarohin, Aliaksandr and Sangineto, Enver and Sebe, Nicu},
+  booktitle={International Conference on Machine Learning},
+  pages={3015--3024},
+  year={2021},
+  organization={PMLR}
 }
 ```
